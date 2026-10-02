@@ -23,7 +23,18 @@ Parameters:
 
   SesRecipient:
     Type: String
-    Description: Correo destino (bandeja personal) de las alertas.
+    Description: >
+      Correo destino PRINCIPAL. Se verifica como identidad SES por el stack y
+      debe ser UN solo correo (no una lista).
+
+  SesRecipientsList:
+    Type: String
+    Default: ""
+    Description: >
+      Lista completa de destinatarios de la alerta, separados por coma. Si se deja
+      vacio, se usa solo SesRecipient. Los correos adicionales deben estar
+      verificados en SES por separado (SES sandbox). Ej:
+      "a@tailoy.com.pe,b@tailoy.com.pe,c@tailoy.com.pe".
 
   MetricNamespace:
     Type: String
@@ -53,6 +64,11 @@ Parameters:
     Type: Number
     Default: 1
     Description: Umbral minimo de errores CRITICOS para disparar la alarma.
+
+# ---------------------------------------------------------------------------
+Conditions:
+  # True si se paso una lista de destinatarios; si no, se usa solo SesRecipient.
+  HasRecipientsList: !Not [!Equals [!Ref SesRecipientsList, ""]]
 
 # ---------------------------------------------------------------------------
 Resources:
@@ -255,7 +271,7 @@ Resources:
       Environment:
         Variables:
           SES_SENDER: !Ref SesSender
-          SES_RECIPIENT: !Ref SesRecipient
+          SES_RECIPIENT: !If [HasRecipientsList, !Ref SesRecipientsList, !Ref SesRecipient]
           MODEL_ID: !Ref ModelId
           BEDROCK_MAX_TOKENS: !Ref BedrockMaxTokens
       Code:

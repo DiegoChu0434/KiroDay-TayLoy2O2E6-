@@ -38,6 +38,9 @@ Variables de entorno:
 import json
 import os
 import logging
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
 
 import boto3
 from botocore.config import Config
@@ -61,11 +64,21 @@ SES_RECIPIENT = os.environ.get("SES_RECIPIENT", "")
 RECIPIENTS = [r.strip() for r in SES_RECIPIENT.replace(";", ",").split(",") if r.strip()]
 MODEL_ID = os.environ.get("MODEL_ID", "us.anthropic.claude-sonnet-5-5")
 BEDROCK_MAX_TOKENS = int(os.environ.get("BEDROCK_MAX_TOKENS", "2000"))
+# Logo embebido (CID). Empaquetado junto al codigo de la Lambda.
+LOGO_PATH = os.environ.get("LOGO_PATH", os.path.join(os.path.dirname(__file__), "tailoy-logo.png"))
+LOGO_CID = "tailoy_logo"
 
+# Paleta corporativa Tai Loy (identidad de marca)
+BRAND_GREEN = "#008C4B"
+BRAND_GREEN_DARK = "#00703C"
+BRAND_YELLOW = "#FFDA00"
+
+# Colores de severidad: mantienen su SEMANTICA de alerta (urgencia), no la marca.
+# Un error CRITICO debe leerse como alarma, no como "todo bien".
 SEVERIDAD_COLOR = {
-    "CRITICA": "#c0392b",
-    "WARNING": "#e67e22",
-    "INFO": "#2980b9",
+    "CRITICA": "#c0392b",   # rojo = urgente
+    "WARNING": "#e38a00",   # ambar (armoniza con el amarillo de marca)
+    "INFO": "#5a6b62",      # gris-verde neutro
 }
 
 SYSTEM_PROMPT = (
@@ -163,10 +176,10 @@ def _narrativa_html(texto, origen):
     )
     cuerpo = texto.replace("\n", "<br>")
     return (
-        "<div style='background:#eef5fb;border-left:4px solid #2980b9;"
+        f"<div style='background:#f4faf6;border-left:4px solid {BRAND_GREEN};"
         "padding:12px 14px;margin:12px 0;border-radius:4px'>"
         f"<div style='font-size:14px;line-height:1.5'>{cuerpo}</div>"
-        f"<div style='color:#999;font-size:11px;margin-top:8px'>{etiqueta}</div>"
+        f"<div style='color:#8a9a91;font-size:11px;margin-top:8px'>{etiqueta}</div>"
         "</div>"
     )
 
@@ -212,11 +225,11 @@ def _runbooks_html(summary):
         resp_linea = (
             f"<strong>Responsable:</strong> {resp.get('actor', '-')} "
             f"({resp.get('frente', '-')}) &nbsp;·&nbsp; "
-            f"<a href='mailto:{resp.get('correo', '')}'>{resp.get('correo', '-')}</a>"
+            f"<a href='mailto:{resp.get('correo', '')}' style='color:{BRAND_GREEN}'>{resp.get('correo', '-')}</a>"
             if resp else ""
         )
         bloques.append(
-            "<div style='border:1px solid #e1e4e8;border-radius:6px;padding:12px 14px;margin:10px 0'>"
+            f"<div style='border:1px solid #e1e4e8;border-left:4px solid {BRAND_GREEN};border-radius:6px;padding:12px 14px;margin:10px 0'>"
             f"<div style='font-weight:600'>{c['categoria']} "
             f"<span style='color:#fff;background:{color};padding:1px 7px;border-radius:3px;font-size:11px'>{c['severidad']}</span> "
             f"<span style='color:#777;font-weight:400'>· {c['conteo']} casos</span></div>"
@@ -228,7 +241,7 @@ def _runbooks_html(summary):
             "</div>"
         )
     return (
-        "<h3>Procedimiento de solución por causa raíz</h3>"
+        f"<h3 style='color:{BRAND_GREEN}'>Procedimiento de solución por causa raíz</h3>"
         "<p style='margin:4px 0;color:#555;font-size:13px'>Pasos definidos por el analista. "
         "Las categorías marcadas como pendientes aún no tienen procedimiento asignado.</p>"
         + "".join(bloques)
@@ -250,17 +263,35 @@ def build_html(summary, narrativa_bloque=""):
         for d in stock_docs[:20]
     )
     stock_section = (
-        f"<h3 style='color:#2980b9'>Alerta diferenciada — Stock / ATP ({stock_count})</h3>"
+        f"<h3 style='color:{BRAND_GREEN}'>Alerta diferenciada — Stock / ATP ({stock_count})</h3>"
         f"<p style='margin:4px 0;color:#555'>Errores de disponibilidad (no son fallas de migración de cliente). "
         f"Mostrando primeros {min(20, len(stock_docs))} de {stock_count}.</p>"
         f"<ul style='font-size:13px'>{stock_items or '<li>Sin casos en este lote.</li>'}</ul>"
     )
 
-    return f"""<html><body style="font-family:Segoe UI,Arial,sans-serif;color:#222;max-width:800px">
-      <h2 style="margin-bottom:0">Alerta de errores — Integración AS/400 → SAP</h2>
-      <p style="color:#777;margin-top:4px">Lote procesado: {lote['procesado_utc']}</p>
+    th = f"background:{BRAND_GREEN};color:#fff"  # cabecera de tabla con la marca
+    h3 = f"color:{BRAND_GREEN}"
 
-      <div style="background:#f8f9fa;border:1px solid #e1e4e8;border-radius:6px;padding:14px;margin:12px 0">
+    return f"""<html><body style="margin:0;padding:0;background:#f4f6f5">
+    <div style="font-family:Segoe UI,Arial,sans-serif;color:#222;max-width:800px;margin:0 auto;background:#fff">
+
+      <!-- Encabezado con la marca: titulo a la izquierda, logo a la derecha -->
+      <table role="presentation" width="100%" style="background:{BRAND_GREEN};border-collapse:collapse">
+        <tr>
+          <td style="padding:20px 24px;vertical-align:middle">
+            <h2 style="margin:0;color:#fff;font-size:20px">Alerta de errores — Integración AS/400 → SAP</h2>
+            <p style="margin:6px 0 0;color:#d8f0e4;font-size:13px">Lote procesado: {lote['procesado_utc']}</p>
+          </td>
+          <td style="padding:12px 24px;vertical-align:middle;text-align:right;white-space:nowrap">
+            <img src="cid:tailoy_logo" alt="Tai Loy" width="64" height="64"
+                 style="display:inline-block;border-radius:8px;background:#fff" />
+          </td>
+        </tr>
+      </table>
+      <div style="height:4px;background:{BRAND_YELLOW}"></div>
+
+      <div style="padding:20px 24px">
+      <div style="background:#f4faf6;border:1px solid #d7ebe0;border-left:4px solid {BRAND_GREEN};border-radius:6px;padding:14px;margin:0 0 12px">
         <strong>Total de errores:</strong> {lote['total_errores']} &nbsp;|&nbsp;
         <strong>Clientes afectados:</strong> {lote['clientes_afectados']}<br>
         <strong>Archivo:</strong> <code>{lote['key']}</code>
@@ -268,9 +299,9 @@ def build_html(summary, narrativa_bloque=""):
 
       {narrativa_bloque}
 
-      <h3>Resumen por categoría (causa raíz)</h3>
+      <h3 style="{h3}">Resumen por categoría (causa raíz)</h3>
       <table style="border-collapse:collapse;width:100%;font-size:14px">
-        <thead><tr style="background:#2c3e50;color:#fff">
+        <thead><tr style="{th}">
           <th style="padding:8px 10px;text-align:left">Categoría</th>
           <th style="padding:8px 10px;text-align:right">Conteo</th>
           <th style="padding:8px 10px;text-align:left">Severidad</th>
@@ -284,9 +315,9 @@ def build_html(summary, narrativa_bloque=""):
 
       {stock_section}
 
-      <h3>Top clientes afectados</h3>
+      <h3 style="{h3}">Top clientes afectados</h3>
       <table style="border-collapse:collapse;width:100%;font-size:14px">
-        <thead><tr style="background:#2c3e50;color:#fff">
+        <thead><tr style="{th}">
           <th style="padding:8px 10px;text-align:left">Cliente</th>
           <th style="padding:8px 10px;text-align:right">Docs</th>
           <th style="padding:8px 10px;text-align:left">Categorías</th>
@@ -295,10 +326,14 @@ def build_html(summary, narrativa_bloque=""):
       </table>
 
       <p style="margin-top:16px">
-        <a href="{s3_url}" style="color:#2980b9">Ver archivo en S3</a>
+        <a href="{s3_url}" style="color:{BRAND_GREEN};font-weight:600">Ver archivo en S3</a>
       </p>
-      <hr style="border:none;border-top:1px solid #eee">
-      <p style="color:#999;font-size:12px">Generado automáticamente por el sistema de alertas de integración AS/400 → SAP.</p>
+      </div>
+
+      <div style="border-top:3px solid {BRAND_YELLOW};background:{BRAND_GREEN};padding:12px 24px">
+        <p style="margin:0;color:#d8f0e4;font-size:12px">Generado automáticamente por el sistema de alertas de integración AS/400 → SAP.</p>
+      </div>
+    </div>
     </body></html>"""
 
 
@@ -340,6 +375,52 @@ def build_text(summary, narrativa=""):
     return "\n".join(lines)
 
 
+def _enviar_correo(subject, html, text):
+    """
+    Envia el correo con el logo embebido (CID) via send_raw_email (MIME multipart).
+    Si el logo no esta disponible, cae a send_email normal (sin logo) para no
+    bloquear la alerta.
+    """
+    try:
+        with open(LOGO_PATH, "rb") as fh:
+            logo_bytes = fh.read()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Logo no disponible (%s); se envia sin logo embebido.", exc)
+        return ses.send_email(
+            Source=SES_SENDER,
+            Destination={"ToAddresses": RECIPIENTS},
+            Message={
+                "Subject": {"Data": subject, "Charset": "UTF-8"},
+                "Body": {
+                    "Text": {"Data": text, "Charset": "UTF-8"},
+                    "Html": {"Data": html, "Charset": "UTF-8"},
+                },
+            },
+        )
+
+    # multipart/related: cuerpo alternativo (texto+html) + imagen embebida
+    msg = MIMEMultipart("related")
+    msg["Subject"] = subject
+    msg["From"] = SES_SENDER
+    msg["To"] = ", ".join(RECIPIENTS)
+
+    alt = MIMEMultipart("alternative")
+    alt.attach(MIMEText(text, "plain", "utf-8"))
+    alt.attach(MIMEText(html, "html", "utf-8"))
+    msg.attach(alt)
+
+    img = MIMEImage(logo_bytes, _subtype="png")
+    img.add_header("Content-ID", f"<{LOGO_CID}>")
+    img.add_header("Content-Disposition", "inline", filename="tailoy-logo.png")
+    msg.attach(img)
+
+    return ses.send_raw_email(
+        Source=SES_SENDER,
+        Destinations=RECIPIENTS,
+        RawMessage={"Data": msg.as_string()},
+    )
+
+
 def handler(event, context):
     logger.info("Evento SNS recibido.")
     if not SES_SENDER or not RECIPIENTS:
@@ -357,17 +438,7 @@ def handler(event, context):
         total = summary["lote"]["total_errores"]
         subject = f"[AS400->SAP] {total} errores de integracion - {summary['lote']['key'].split('/')[-1]}"
 
-        resp = ses.send_email(
-            Source=SES_SENDER,
-            Destination={"ToAddresses": RECIPIENTS},
-            Message={
-                "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {
-                    "Text": {"Data": text, "Charset": "UTF-8"},
-                    "Html": {"Data": html, "Charset": "UTF-8"},
-                },
-            },
-        )
+        resp = _enviar_correo(subject, html, text)
         logger.info("Correo enviado (narrativa=%s). MessageId=%s", origen, resp.get("MessageId"))
 
     return {"statusCode": 200}

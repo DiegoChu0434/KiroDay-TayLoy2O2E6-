@@ -8,55 +8,47 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      /* Tai Loy · colores oficiales de marca
-         Digital:   Verde R0 G140 B75 #008C4B  · Amarillo R255 G218 B0 #FFDA00
-         Impresión: Verde C100 M10 Y100 K10    · Amarillo C0 M12 Y100 K0
-         Neutros (ink/muted/soft/rule) derivados del matiz del verde de marca.
-         El SVG inline usa estos mismos hex literales: si cambias un token, cámbialo también allí. */
-      --color-paper:       #f6faf7;
-      --color-paper-2:     #e6f3ec;
-      --color-ink:         #0b2e1c;
-      --color-muted:       #2f6b4a;
-      --color-soft:        #4d8064;
-      --color-rule:        rgba(0,140,75,0.25);
-      --color-accent:      #008C4B; /* verde marca: estructura, flujo, bordes */
-      --color-accent-deep: #006B39; /* verde profundo: texto verde pequeño y fondos con texto blanco/amarillo */
-      --color-accent-tint: rgba(0,140,75,0.10);
-      --color-yellow:      #FFDA00; /* amarillo marca: resaltes, siempre como relleno */
-      --color-yellow-tint: rgba(255,218,0,0.28);
-      --color-on-accent:   #ffffff;
+      --color-paper:   #fafaf7;
+      --color-paper-2: #eef0ec;
+      --color-ink:     #10241a;
+      --color-muted:   #4a7a5f;
+      --color-soft:    #7fae92;
+      --color-rule:    rgba(16,36,26,0.12);
+      --color-accent:  #008C4B;
+      --color-yellow:  #FFDA00;
+      --color-link:    #1e4389;
       --font-sans:  'Roboto', 'Geist', system-ui, sans-serif;
       --font-serif: 'Instrument Serif', serif;
       --font-mono:  'Roboto Mono', 'Geist Mono', ui-monospace, monospace;
     }
     body { font-family: var(--font-sans); background: var(--color-paper); min-height: 100vh; padding: 3rem 2rem; color: var(--color-ink); }
     .container { max-width: 1280px; margin: 0 auto; }
-    .header-eyebrow { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-ink); margin-bottom: 0.75rem; display: inline-block; background: var(--color-yellow); padding: 0.3rem 0.55rem; border-radius: 3px; font-weight: 600; }
-    h1 { font-family: var(--font-serif); font-size: clamp(1.75rem, 3vw + 1rem, 2.5rem); font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-on-accent); margin-bottom: 0.75rem; }
+    .header-eyebrow { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-muted); margin-bottom: 0.75rem; }
+    h1 { font-family: var(--font-serif); font-size: clamp(1.75rem, 3vw + 1rem, 2.5rem); font-weight: 400; letter-spacing: -0.02em; line-height: 1.1; color: var(--color-ink); margin-bottom: 0.75rem; }
     .brand-bar { display: flex; gap: 5px; margin-bottom: 0.9rem; }
     .brand-bar span { height: 6px; border-radius: 3px; }
-    .brand-bar span:first-child { width: 68px; background: var(--color-yellow); }
-    .brand-bar span:last-child { width: 24px; background: #ffffff; }
-    .subtitle { font-size: 1rem; line-height: 1.55; color: #ffffff; max-width: 60ch; }
-    .masthead { display: flex; align-items: center; justify-content: space-between; gap: 2rem; margin-bottom: 2.5rem; background: var(--color-accent-deep); border-top: 8px solid var(--color-accent); border-bottom: 6px solid var(--color-yellow); border-radius: 10px; padding: 1.75rem 2rem; }
+    .brand-bar span:first-child { width: 68px; background: var(--color-accent); }
+    .brand-bar span:last-child { width: 24px; background: var(--color-yellow); }
+    .subtitle { font-size: 1rem; line-height: 1.55; color: var(--color-muted); max-width: 60ch; }
+    .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 2rem; margin-bottom: 2.5rem; }
     .masthead-text { flex: 1; }
-    .brand-logo { flex-shrink: 0; width: 112px; height: 112px; border-radius: 12px; display: block; box-shadow: 0 0 0 3px var(--color-yellow); }
+    .brand-logo { flex-shrink: 0; width: 112px; height: 112px; border-radius: 12px; display: block; }
     .diagram-container { background: transparent; border: none; padding: 0; overflow-x: auto; }
     svg { width: 100%; min-width: 1280px; display: block; }
     @media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
     .cards { display: grid; grid-template-columns: 1.1fr 1fr 0.95fr; gap: 1rem; margin-top: 1.75rem; }
-    .card { background: #ffffff; border-radius: 6px; border: 1px solid var(--color-rule); border-top: 4px solid var(--color-accent); padding: 1.25rem; }
-    .card-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.875rem; padding-bottom: 0.875rem; border-bottom: 1px solid rgba(0,140,75,0.25); }
+    .card { background: #ffffff; border-radius: 6px; border: 1px solid var(--color-rule); padding: 1.25rem; }
+    .card-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.875rem; padding-bottom: 0.875rem; border-bottom: 1px solid rgba(16,36,26,0.08); }
     .card-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .card-dot.accent { background: var(--color-accent); }
     .card-dot.ink { background: var(--color-ink); }
-    .card-dot.amber { background: var(--color-yellow); box-shadow: 0 0 0 1.5px var(--color-accent-deep); }
-    .card h3 { font-family: var(--font-sans); font-size: 0.875rem; font-weight: 600; color: var(--color-accent-deep); letter-spacing: -0.005em; }
+    .card-dot.amber { background: #b8915a; }
+    .card h3 { font-family: var(--font-sans); font-size: 0.875rem; font-weight: 600; color: var(--color-ink); letter-spacing: -0.005em; }
     .card ul { list-style: none; color: var(--color-muted); font-size: 0.8125rem; line-height: 1.55; }
     .card li { margin-bottom: 0.3rem; padding-left: 0.875rem; position: relative; }
-    .card li::before { content: '-'; position: absolute; left: 0; color: var(--color-accent); font-size: 0.75rem; }
+    .card li::before { content: '-'; position: absolute; left: 0; color: rgba(16,36,26,0.25); font-size: 0.75rem; }
     .card li b { color: var(--color-ink); font-weight: 600; }
-    .footer { margin-top: 2rem; padding-top: 1.5rem; border-top: 2px solid var(--color-accent); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--color-muted); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+    .footer { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(16,36,26,0.10); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--color-soft); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
   </style>
 </head>
 <body>
@@ -77,176 +69,176 @@
         <desc id="arq-aws-full-desc">Dos planos en la cuenta AWS: el flujo de alertas serverless desplegado por CloudFormation (S3, Lambda, SNS, Bedrock, SES, CloudWatch) y la analítica para Power BI creada por CLI (S3 curated, Glue, Athena).</desc>
         <defs>
           <pattern id="dots-f" width="22" height="22" patternUnits="userSpaceOnUse">
-            <circle cx="11" cy="11" r="0.8" fill="rgba(0,140,75,0.16)"/>
+            <circle cx="11" cy="11" r="0.8" fill="rgba(16,36,26,0.10)"/>
           </pattern>
-          <marker id="arrow-f" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#008C4B"/></marker>
+          <marker id="arrow-f" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4a7a5f"/></marker>
           <marker id="arrow-accent-f" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#008C4B"/></marker>
-          <marker id="arrow-link-f" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#006B39"/></marker>
-          <marker id="arrow-pend-f" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4d8064"/></marker>
+          <marker id="arrow-link-f" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#1e4389"/></marker>
+          <marker id="arrow-pend-f" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#b8915a"/></marker>
         </defs>
 
-        <rect width="1280" height="720" fill="#f6faf7"/>
+        <rect width="1280" height="720" fill="#fafaf7"/>
         <rect width="1280" height="720" fill="url(#dots-f)" opacity="0.55"/>
 
         <!-- ===== AWS account/region boundary (dashed) ===== -->
-        <rect x="40" y="96" width="1200" height="536" rx="10" fill="transparent" stroke="rgba(0,140,75,0.6)" stroke-width="1" stroke-dasharray="6,4"/>
-        <rect x="56" y="88" width="300" height="16" rx="2" fill="#FFDA00"/>
-        <text x="64" y="100" fill="#0b2e1c" font-size="8" font-weight="700" font-family="var(--font-mono)" letter-spacing="0.12em">AWS · 971431176203 · US-EAST-1</text>
+        <rect x="40" y="96" width="1200" height="536" rx="10" fill="transparent" stroke="rgba(16,36,26,0.22)" stroke-width="1" stroke-dasharray="6,4"/>
+        <rect x="56" y="88" width="300" height="16" rx="2" fill="#fafaf7"/>
+        <text x="64" y="100" fill="#4a7a5f" font-size="8" font-weight="500" font-family="var(--font-mono)" letter-spacing="0.12em">AWS · 971431176203 · US-EAST-1</text>
 
         <!-- ===== ZONE 1: Flujo de alertas (CloudFormation) ===== -->
-        <rect x="64" y="150" width="1152" height="212" rx="8" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.40)" stroke-width="0.8"/>
-        <rect x="80" y="144" width="372" height="14" rx="2" fill="#006B39"/>
-        <text x="88" y="155" fill="#FFDA00" font-weight="700" font-size="7.5" font-family="var(--font-mono)" letter-spacing="0.14em">FLUJO DE ALERTAS · CLOUDFORMATION (stack ha00-alertas)</text>
+        <rect x="64" y="150" width="1152" height="212" rx="8" fill="rgba(16,36,26,0.02)" stroke="rgba(16,36,26,0.10)" stroke-width="0.8"/>
+        <rect x="80" y="144" width="372" height="14" rx="2" fill="#fafaf7"/>
+        <text x="88" y="155" fill="rgba(16,36,26,0.45)" font-size="7.5" font-family="var(--font-mono)" letter-spacing="0.14em">FLUJO DE ALERTAS · CLOUDFORMATION (stack ha00-alertas)</text>
 
         <!-- ===== ZONE 2: Analítica Power BI (CLI) ===== -->
-        <rect x="64" y="398" width="1152" height="212" rx="8" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.40)" stroke-width="0.8"/>
-        <rect x="80" y="392" width="296" height="14" rx="2" fill="#006B39"/>
-        <text x="88" y="403" fill="#FFDA00" font-weight="700" font-size="7.5" font-family="var(--font-mono)" letter-spacing="0.14em">ANALÍTICA POWER BI · CLI (semi-manual)</text>
+        <rect x="64" y="398" width="1152" height="212" rx="8" fill="rgba(16,36,26,0.02)" stroke="rgba(16,36,26,0.10)" stroke-width="0.8"/>
+        <rect x="80" y="392" width="296" height="14" rx="2" fill="#fafaf7"/>
+        <text x="88" y="403" fill="rgba(16,36,26,0.45)" font-size="7.5" font-family="var(--font-mono)" letter-spacing="0.14em">ANALÍTICA POWER BI · CLI (semi-manual)</text>
 
         <!-- ============ ARROWS (before nodes) ============ -->
         <!-- S3 ingest -> Analyzer (event) -->
-        <line x1="256" y1="232" x2="312" y2="232" stroke="#008C4B" stroke-width="1.2" marker-end="url(#arrow-f)"/>
-        <rect x="256" y="212" width="58" height="12" rx="2" fill="#FFDA00"/>
-        <text x="285" y="221" fill="#0b2e1c" font-weight="700" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">OBJECT</text>
+        <line x1="256" y1="232" x2="312" y2="232" stroke="#4a7a5f" stroke-width="1.2" marker-end="url(#arrow-f)"/>
+        <rect x="256" y="212" width="58" height="12" rx="2" fill="#fafaf7"/>
+        <text x="285" y="221" fill="#4a7a5f" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">OBJECT</text>
         <!-- Analyzer -> SNS -->
-        <line x1="488" y1="232" x2="544" y2="232" stroke="#008C4B" stroke-width="1.2" marker-end="url(#arrow-f)"/>
-        <rect x="488" y="212" width="56" height="12" rx="2" fill="#FFDA00"/>
-        <text x="516" y="221" fill="#0b2e1c" font-weight="700" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">JSON</text>
+        <line x1="488" y1="232" x2="544" y2="232" stroke="#4a7a5f" stroke-width="1.2" marker-end="url(#arrow-f)"/>
+        <rect x="488" y="212" width="56" height="12" rx="2" fill="#fafaf7"/>
+        <text x="516" y="221" fill="#4a7a5f" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">JSON</text>
         <!-- SNS -> Email (focal accent) -->
-        <line x1="720" y1="232" x2="776" y2="232" stroke="#008C4B" stroke-width="2.2" marker-end="url(#arrow-accent-f)"/>
-        <rect x="720" y="212" width="56" height="12" rx="2" fill="#FFDA00"/>
-        <text x="748" y="221" fill="#0b2e1c" font-weight="700" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">INVOKE</text>
+        <line x1="720" y1="232" x2="776" y2="232" stroke="#008C4B" stroke-width="1.6" marker-end="url(#arrow-accent-f)"/>
+        <rect x="720" y="212" width="56" height="12" rx="2" fill="#fafaf7"/>
+        <text x="748" y="221" fill="#008C4B" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">INVOKE</text>
         <!-- Email -> SES -->
-        <line x1="952" y1="232" x2="1008" y2="232" stroke="#006B39" stroke-width="1.2" stroke-dasharray="2,2" marker-end="url(#arrow-link-f)"/>
-        <rect x="952" y="212" width="56" height="12" rx="2" fill="#FFDA00"/>
-        <text x="980" y="221" fill="#0b2e1c" font-weight="700" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">SEND</text>
+        <line x1="952" y1="232" x2="1008" y2="232" stroke="#1e4389" stroke-width="1.2" marker-end="url(#arrow-link-f)"/>
+        <rect x="952" y="212" width="56" height="12" rx="2" fill="#fafaf7"/>
+        <text x="980" y="221" fill="#1e4389" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">SEND</text>
         <!-- Email <-> Bedrock: two clean parallel verticals (synth bottom y=264, bedrock top y=324) -->
         <path d="M 858,266 V 322" fill="none" stroke="#008C4B" stroke-width="1.2" marker-end="url(#arrow-accent-f)"/>
         <path d="M 870,322 V 266" fill="none" stroke="#008C4B" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow-accent-f)"/>
         <!-- Analyzer -> CloudWatch alarm (métricas): up from analyzer, into alarm bottom -->
-        <path d="M 456,200 V 180 Q 456,176 460,176 H 628 Q 632,176 632,180 V 192" fill="none" stroke="#008C4B" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-f)"/>
-        <rect x="506" y="170" width="60" height="12" rx="2" fill="#FFDA00"/>
-        <text x="536" y="179" fill="#0b2e1c" font-weight="700" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">MÉTRICAS</text>
+        <path d="M 456,200 V 180 Q 456,176 460,176 H 628 Q 632,176 632,180 V 192" fill="none" stroke="#4a7a5f" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-f)"/>
+        <rect x="506" y="170" width="60" height="12" rx="2" fill="#fafaf7"/>
+        <text x="536" y="179" fill="#4a7a5f" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">MÉTRICAS</text>
 
         <!-- Analyzer -> S3 curated (PENDIENTE, dashed amber, cross-zone down): bottom of analyzer -> left -> down into curated top -->
-        <path d="M 400,264 V 376 Q 400,384 392,384 H 192 Q 184,384 184,392 V 458" fill="none" stroke="#4d8064" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-pend-f)"/>
-        <rect x="240" y="378" width="104" height="12" rx="2" fill="#FFDA00"/>
-        <text x="292" y="387" fill="#0b2e1c" font-weight="700" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">PENDIENTE</text>
+        <path d="M 400,264 V 376 Q 400,384 392,384 H 192 Q 184,384 184,392 V 458" fill="none" stroke="#b8915a" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-pend-f)"/>
+        <rect x="240" y="378" width="104" height="12" rx="2" fill="#fafaf7"/>
+        <text x="292" y="387" fill="#b8915a" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">PENDIENTE</text>
 
         <!-- Analítica row arrows -->
-        <line x1="256" y1="490" x2="312" y2="490" stroke="#008C4B" stroke-width="1.2" marker-end="url(#arrow-f)"/>
-        <line x1="488" y1="490" x2="544" y2="490" stroke="#008C4B" stroke-width="1.2" marker-end="url(#arrow-f)"/>
-        <line x1="720" y1="490" x2="776" y2="490" stroke="#006B39" stroke-width="1.2" stroke-dasharray="2,2" marker-end="url(#arrow-link-f)"/>
-        <rect x="720" y="470" width="56" height="12" rx="2" fill="#FFDA00"/>
-        <text x="748" y="479" fill="#0b2e1c" font-weight="700" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">ODBC</text>
+        <line x1="256" y1="490" x2="312" y2="490" stroke="#4a7a5f" stroke-width="1.2" marker-end="url(#arrow-f)"/>
+        <line x1="488" y1="490" x2="544" y2="490" stroke="#4a7a5f" stroke-width="1.2" marker-end="url(#arrow-f)"/>
+        <line x1="720" y1="490" x2="776" y2="490" stroke="#1e4389" stroke-width="1.2" marker-end="url(#arrow-link-f)"/>
+        <rect x="720" y="470" width="56" height="12" rx="2" fill="#fafaf7"/>
+        <text x="748" y="479" fill="#1e4389" font-size="8" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">ODBC</text>
 
         <!-- ============ NODES ============ -->
         <!-- Node: S3 ingest -->
-        <rect x="112" y="200" width="144" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="112" y="200" width="144" height="64" rx="6" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.55)" stroke-width="1"/>
-        <rect x="120" y="208" width="24" height="12" rx="2" fill="rgba(0,140,75,0.12)" stroke="rgba(0,140,75,0.5)" stroke-width="0.8"/>
-        <text x="132" y="217" fill="#006B39" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">S3</text>
-        <text x="184" y="234" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Bucket ingesta</text>
-        <text x="184" y="249" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">test-ingest (aislado)</text>
-        <text x="184" y="260" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00_YYYYMMDD.csv</text>
+        <rect x="112" y="200" width="144" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="112" y="200" width="144" height="64" rx="6" fill="rgba(16,36,26,0.03)" stroke="rgba(16,36,26,0.30)" stroke-width="1"/>
+        <rect x="120" y="208" width="24" height="12" rx="2" fill="transparent" stroke="rgba(16,36,26,0.25)" stroke-width="0.8"/>
+        <text x="132" y="217" fill="#4a7a5f" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">S3</text>
+        <text x="184" y="234" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Bucket ingesta</text>
+        <text x="184" y="249" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">test-ingest (aislado)</text>
+        <text x="184" y="260" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00_YYYYMMDD.csv</text>
 
         <!-- Node: Analyzer Lambda -->
-        <rect x="312" y="200" width="176" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="312" y="200" width="176" height="64" rx="6" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.55)" stroke-width="1"/>
-        <rect x="320" y="208" width="30" height="12" rx="2" fill="rgba(0,140,75,0.12)" stroke="rgba(0,140,75,0.5)" stroke-width="0.8"/>
-        <text x="335" y="217" fill="#006B39" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">λ</text>
-        <text x="400" y="234" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Lambda analizadora</text>
-        <text x="400" y="249" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00-alertas-analyzer</text>
-        <text x="400" y="260" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">py3.12 · clasifica + agrupa</text>
+        <rect x="312" y="200" width="176" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="312" y="200" width="176" height="64" rx="6" fill="rgba(16,36,26,0.03)" stroke="rgba(16,36,26,0.30)" stroke-width="1"/>
+        <rect x="320" y="208" width="30" height="12" rx="2" fill="transparent" stroke="rgba(16,36,26,0.25)" stroke-width="0.8"/>
+        <text x="335" y="217" fill="#4a7a5f" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">λ</text>
+        <text x="400" y="234" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Lambda analizadora</text>
+        <text x="400" y="249" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00-alertas-analyzer</text>
+        <text x="400" y="260" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">py3.12 · clasifica + agrupa</text>
 
         <!-- Node: SNS -->
-        <rect x="544" y="200" width="176" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="544" y="200" width="176" height="64" rx="6" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.55)" stroke-width="1"/>
-        <rect x="552" y="208" width="34" height="12" rx="2" fill="rgba(0,140,75,0.12)" stroke="rgba(0,140,75,0.5)" stroke-width="0.8"/>
-        <text x="569" y="217" fill="#006B39" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">SNS</text>
-        <text x="632" y="234" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Topic de alertas</text>
-        <text x="632" y="249" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00-alertas-alertas</text>
-        <text x="632" y="260" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">fan-out del lote</text>
+        <rect x="544" y="200" width="176" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="544" y="200" width="176" height="64" rx="6" fill="rgba(16,36,26,0.03)" stroke="rgba(16,36,26,0.30)" stroke-width="1"/>
+        <rect x="552" y="208" width="34" height="12" rx="2" fill="transparent" stroke="rgba(16,36,26,0.25)" stroke-width="0.8"/>
+        <text x="569" y="217" fill="#4a7a5f" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">SNS</text>
+        <text x="632" y="234" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Topic de alertas</text>
+        <text x="632" y="249" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00-alertas-alertas</text>
+        <text x="632" y="260" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">fan-out del lote</text>
 
         <!-- Node: Email Lambda (FOCAL accent) -->
-        <rect x="776" y="200" width="176" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="776" y="200" width="176" height="64" rx="6" fill="rgba(0,140,75,0.14)" stroke="#008C4B" stroke-width="1.8"/>
-        <rect x="784" y="208" width="30" height="12" rx="2" fill="#006B39" stroke="#006B39" stroke-width="0.8"/>
-        <text x="799" y="217" fill="#FFDA00" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">AI</text>
-        <text x="864" y="234" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Lambda sintetizadora</text>
-        <text x="864" y="249" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00-alertas-email</text>
-        <text x="864" y="260" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">narrativa IA + fallback</text>
+        <rect x="776" y="200" width="176" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="776" y="200" width="176" height="64" rx="6" fill="rgba(0,140,75,0.08)" stroke="#008C4B" stroke-width="1.4"/>
+        <rect x="784" y="208" width="30" height="12" rx="2" fill="transparent" stroke="rgba(0,140,75,0.5)" stroke-width="0.8"/>
+        <text x="799" y="217" fill="#008C4B" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">AI</text>
+        <text x="864" y="234" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Lambda sintetizadora</text>
+        <text x="864" y="249" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">ha00-alertas-email</text>
+        <text x="864" y="260" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">narrativa IA + fallback</text>
 
         <!-- Node: SES -->
-        <rect x="1008" y="200" width="160" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="1008" y="200" width="160" height="64" rx="6" fill="rgba(255,218,0,0.18)" stroke="#008C4B" stroke-width="1"/>
-        <rect x="1016" y="208" width="30" height="12" rx="2" fill="transparent" stroke="#008C4B" stroke-width="0.8"/>
-        <text x="1031" y="217" fill="#006B39" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">SES</text>
-        <text x="1088" y="234" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Correo HTML</text>
-        <text x="1088" y="249" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">sandbox · 2 identidades</text>
-        <text x="1088" y="260" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">asilvera@tailoy.com.pe</text>
+        <rect x="1008" y="200" width="160" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="1008" y="200" width="160" height="64" rx="6" fill="rgba(30,67,137,0.05)" stroke="rgba(30,67,137,0.5)" stroke-width="1"/>
+        <rect x="1016" y="208" width="30" height="12" rx="2" fill="transparent" stroke="rgba(30,67,137,0.4)" stroke-width="0.8"/>
+        <text x="1031" y="217" fill="#1e4389" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">SES</text>
+        <text x="1088" y="234" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Correo HTML</text>
+        <text x="1088" y="249" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">sandbox · 2 identidades</text>
+        <text x="1088" y="260" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">asilvera@tailoy.com.pe</text>
 
         <!-- Node: Bedrock (below Email) -->
-        <rect x="800" y="324" width="128" height="52" rx="6" fill="#f6faf7"/>
-        <rect x="800" y="324" width="128" height="52" rx="6" fill="rgba(0,140,75,0.10)" stroke="#008C4B" stroke-width="1"/>
-        <text x="864" y="347" fill="#0b2e1c" font-size="11" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Amazon Bedrock</text>
-        <text x="864" y="362" fill="#2f6b4a" font-size="8" font-family="var(--font-mono)" text-anchor="middle">Claude Sonnet 5.5</text>
+        <rect x="800" y="324" width="128" height="52" rx="6" fill="#fafaf7"/>
+        <rect x="800" y="324" width="128" height="52" rx="6" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.45)" stroke-width="1"/>
+        <text x="864" y="347" fill="#10241a" font-size="11" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Amazon Bedrock</text>
+        <text x="864" y="362" fill="#4a7a5f" font-size="8" font-family="var(--font-mono)" text-anchor="middle">Claude Sonnet 5.5</text>
 
         <!-- Node: CloudWatch alarm (to the right, above SNS, clear of zone label) -->
-        <rect x="560" y="162" width="144" height="30" rx="6" fill="#f6faf7"/>
-        <rect x="560" y="162" width="144" height="30" rx="6" fill="rgba(255,218,0,0.28)" stroke="#008C4B" stroke-width="1"/>
-        <text x="632" y="174" fill="#0b2e1c" font-size="9.5" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">CloudWatch Alarm</text>
-        <text x="632" y="186" fill="#2f6b4a" font-size="7.5" font-family="var(--font-mono)" text-anchor="middle">errores-criticos</text>
+        <rect x="560" y="162" width="144" height="30" rx="6" fill="#fafaf7"/>
+        <rect x="560" y="162" width="144" height="30" rx="6" fill="rgba(184,145,90,0.08)" stroke="rgba(184,145,90,0.5)" stroke-width="1"/>
+        <text x="632" y="174" fill="#10241a" font-size="9.5" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">CloudWatch Alarm</text>
+        <text x="632" y="186" fill="#4a7a5f" font-size="7.5" font-family="var(--font-mono)" text-anchor="middle">errores-criticos</text>
 
         <!-- ===== Analítica nodes ===== -->
         <!-- Node: S3 curated -->
-        <rect x="112" y="458" width="144" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="112" y="458" width="144" height="64" rx="6" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.55)" stroke-width="1"/>
-        <rect x="120" y="466" width="24" height="12" rx="2" fill="rgba(0,140,75,0.12)" stroke="rgba(0,140,75,0.5)" stroke-width="0.8"/>
-        <text x="132" y="475" fill="#006B39" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">S3</text>
-        <text x="184" y="492" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Bucket curated</text>
-        <text x="184" y="507" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">Parquet · SSE-S3</text>
-        <text x="184" y="518" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">2.474 filas · 1 lote</text>
+        <rect x="112" y="458" width="144" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="112" y="458" width="144" height="64" rx="6" fill="rgba(16,36,26,0.03)" stroke="rgba(16,36,26,0.30)" stroke-width="1"/>
+        <rect x="120" y="466" width="24" height="12" rx="2" fill="transparent" stroke="rgba(16,36,26,0.25)" stroke-width="0.8"/>
+        <text x="132" y="475" fill="#4a7a5f" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">S3</text>
+        <text x="184" y="492" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Bucket curated</text>
+        <text x="184" y="507" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">Parquet · SSE-S3</text>
+        <text x="184" y="518" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">2.474 filas · 1 lote</text>
 
         <!-- Node: Glue -->
-        <rect x="312" y="458" width="176" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="312" y="458" width="176" height="64" rx="6" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.55)" stroke-width="1"/>
-        <rect x="320" y="466" width="36" height="12" rx="2" fill="rgba(0,140,75,0.12)" stroke="rgba(0,140,75,0.5)" stroke-width="0.8"/>
-        <text x="338" y="475" fill="#006B39" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">GLUE</text>
-        <text x="400" y="492" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Catálogo Glue</text>
-        <text x="400" y="507" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">tailoy_ha00_alertas</text>
-        <text x="400" y="518" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">errores_detalle · enviadas</text>
+        <rect x="312" y="458" width="176" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="312" y="458" width="176" height="64" rx="6" fill="rgba(16,36,26,0.03)" stroke="rgba(16,36,26,0.30)" stroke-width="1"/>
+        <rect x="320" y="466" width="36" height="12" rx="2" fill="transparent" stroke="rgba(16,36,26,0.25)" stroke-width="0.8"/>
+        <text x="338" y="475" fill="#4a7a5f" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">GLUE</text>
+        <text x="400" y="492" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Catálogo Glue</text>
+        <text x="400" y="507" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">tailoy_ha00_alertas</text>
+        <text x="400" y="518" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">errores_detalle · enviadas</text>
 
         <!-- Node: Athena -->
-        <rect x="544" y="458" width="176" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="544" y="458" width="176" height="64" rx="6" fill="rgba(0,140,75,0.05)" stroke="rgba(0,140,75,0.55)" stroke-width="1"/>
-        <rect x="552" y="466" width="46" height="12" rx="2" fill="rgba(0,140,75,0.12)" stroke="rgba(0,140,75,0.5)" stroke-width="0.8"/>
-        <text x="575" y="475" fill="#006B39" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">ATHENA</text>
-        <text x="632" y="492" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Athena</text>
-        <text x="632" y="507" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">workgroup ha00-powerbi</text>
-        <text x="632" y="518" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">SQL sobre Parquet</text>
+        <rect x="544" y="458" width="176" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="544" y="458" width="176" height="64" rx="6" fill="rgba(16,36,26,0.03)" stroke="rgba(16,36,26,0.30)" stroke-width="1"/>
+        <rect x="552" y="466" width="46" height="12" rx="2" fill="transparent" stroke="rgba(16,36,26,0.25)" stroke-width="0.8"/>
+        <text x="575" y="475" fill="#4a7a5f" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">ATHENA</text>
+        <text x="632" y="492" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Athena</text>
+        <text x="632" y="507" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">workgroup ha00-powerbi</text>
+        <text x="632" y="518" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">SQL sobre Parquet</text>
 
         <!-- Node: Power BI -->
-        <rect x="776" y="458" width="176" height="64" rx="6" fill="#f6faf7"/>
-        <rect x="776" y="458" width="176" height="64" rx="6" fill="rgba(255,218,0,0.30)" stroke="#008C4B" stroke-width="1"/>
-        <rect x="784" y="466" width="34" height="12" rx="2" fill="#FFDA00" stroke="#008C4B" stroke-width="0.8"/>
-        <text x="801" y="475" fill="#0b2e1c" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">BI</text>
-        <text x="864" y="492" fill="#0b2e1c" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Power BI</text>
-        <text x="864" y="507" fill="#2f6b4a" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">conector Athena ODBC</text>
-        <text x="864" y="518" fill="#4d8064" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">dashboards del lote</text>
+        <rect x="776" y="458" width="176" height="64" rx="6" fill="#fafaf7"/>
+        <rect x="776" y="458" width="176" height="64" rx="6" fill="rgba(255,212,0,0.14)" stroke="rgba(184,145,90,0.6)" stroke-width="1"/>
+        <rect x="784" y="466" width="34" height="12" rx="2" fill="transparent" stroke="rgba(184,145,90,0.5)" stroke-width="0.8"/>
+        <text x="801" y="475" fill="#b8915a" font-size="7" font-family="var(--font-mono)" text-anchor="middle" letter-spacing="0.06em">BI</text>
+        <text x="864" y="492" fill="#10241a" font-size="12" font-weight="600" font-family="var(--font-sans)" text-anchor="middle">Power BI</text>
+        <text x="864" y="507" fill="#4a7a5f" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">conector Athena ODBC</text>
+        <text x="864" y="518" fill="#7fae92" font-size="8.5" font-family="var(--font-mono)" text-anchor="middle">dashboards del lote</text>
 
         <!-- ============ LEGEND (bottom strip) ============ -->
-        <text x="64" y="652" fill="#006B39" font-size="8" font-weight="700" font-family="var(--font-mono)" letter-spacing="0.14em">LEYENDA</text>
-        <rect x="150" y="645" width="14" height="10" rx="2" fill="rgba(0,140,75,0.14)" stroke="#008C4B" stroke-width="1.2"/>
-        <text x="170" y="653" fill="#2f6b4a" font-size="9" font-family="var(--font-sans)">Síntesis con IA (focal)</text>
+        <text x="64" y="652" fill="rgba(16,36,26,0.45)" font-size="8" font-weight="500" font-family="var(--font-mono)" letter-spacing="0.14em">LEYENDA</text>
+        <rect x="150" y="645" width="14" height="10" rx="2" fill="rgba(0,140,75,0.08)" stroke="#008C4B" stroke-width="1.2"/>
+        <text x="170" y="653" fill="#4a7a5f" font-size="9" font-family="var(--font-sans)">Síntesis con IA (focal)</text>
         <line x1="320" y1="650" x2="340" y2="650" stroke="#008C4B" stroke-width="1.6" marker-end="url(#arrow-accent-f)"/>
-        <text x="346" y="653" fill="#2f6b4a" font-size="9" font-family="var(--font-sans)">Flujo principal</text>
-        <line x1="470" y1="650" x2="490" y2="650" stroke="#006B39" stroke-width="1.2" stroke-dasharray="2,2" marker-end="url(#arrow-link-f)"/>
-        <text x="496" y="653" fill="#2f6b4a" font-size="9" font-family="var(--font-sans)">Envío / consulta externa</text>
-        <line x1="660" y1="650" x2="680" y2="650" stroke="#4d8064" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-pend-f)"/>
-        <text x="686" y="653" fill="#2f6b4a" font-size="9" font-family="var(--font-sans)">Pendiente (escritura auto)</text>
-        <rect x="880" y="645" width="14" height="10" rx="2" fill="transparent" stroke="rgba(0,140,75,0.6)" stroke-width="1" stroke-dasharray="3,3"/>
-        <text x="900" y="653" fill="#2f6b4a" font-size="9" font-family="var(--font-sans)">Cuenta / zona AWS</text>
+        <text x="346" y="653" fill="#4a7a5f" font-size="9" font-family="var(--font-sans)">Flujo principal</text>
+        <line x1="470" y1="650" x2="490" y2="650" stroke="#1e4389" stroke-width="1.2" marker-end="url(#arrow-link-f)"/>
+        <text x="496" y="653" fill="#4a7a5f" font-size="9" font-family="var(--font-sans)">Envío / consulta externa</text>
+        <line x1="660" y1="650" x2="680" y2="650" stroke="#b8915a" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow-pend-f)"/>
+        <text x="686" y="653" fill="#4a7a5f" font-size="9" font-family="var(--font-sans)">Pendiente (escritura auto)</text>
+        <rect x="880" y="645" width="14" height="10" rx="2" fill="transparent" stroke="rgba(16,36,26,0.22)" stroke-width="1" stroke-dasharray="3,3"/>
+        <text x="900" y="653" fill="#4a7a5f" font-size="9" font-family="var(--font-sans)">Cuenta / zona AWS</text>
       </svg>
     </div>
 

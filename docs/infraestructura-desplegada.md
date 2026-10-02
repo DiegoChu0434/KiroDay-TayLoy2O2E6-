@@ -214,6 +214,53 @@ la narrativa salía vacía y caía al fallback. Se subió a **2000** en el códi
 
 ---
 
+## 5.2 Desincronización stack ↔ Lambda viva (IMPORTANTE)
+
+El stack `ha00-alertas` quedó en `UPDATE_ROLLBACK_COMPLETE`: su definición tiene el
+**código y parámetros ANTERIORES** (destinatario único `asilvera+alertas@`). La
+**Lambda viva está adelantada** y es la fuente de verdad operativa:
+
+| Aspecto | Stack (definición) | Lambda viva (real, funcionando) |
+|---------|--------------------|---------------------------------|
+| Código `ha00-alertas-email` | 1 destinatario (`[RECIP]`) | multi-destinatario (`RECIPS`) |
+| `SES_RECIPIENT` | `asilvera+alertas@tailoy.com.pe` | `asilvera@,madelgado@,dchu@tailoy.com.pe` |
+| `BEDROCK_MAX_TOKENS` | 350 (en la def. del stack) | 2000 |
+
+**Por qué quedó así:** dos `cloudformation deploy` fallaron por un conflicto entre
+las identidades SES que gestiona el stack (`AWS::SES::EmailIdentity`) y las que se
+verificaron **a mano por CLI** (`madelgado@`, `dchu@`). CFN no puede crear una
+identidad que ya existe fuera de su control (`AlreadyExists`). Para desbloquear se
+actualizó **solo el código + env var de la Lambda** por CLI
+(`update-function-code` + `update-function-configuration`).
+
+> ⚠️ **NO ejecutar `cloudformation deploy` / `scripts/deploy.ps1` sobre este stack
+> tal como está**: revertiría la Lambda viva al código de 1 destinatario y volvería a
+> fallar por el conflicto de identidades. Mientras se opere a mano, la Lambda es la
+> fuente de verdad.
+
+**Para re-alinear stack y realidad en el futuro** (cuando se quiera volver a IaC puro),
+elegir UNA de estas opciones antes de redesplegar:
+- (A) Sacar los recursos `AWS::SES::EmailIdentity` del stack y gestionar todas las
+  identidades por CLI (coherente con cómo se vino trabajando). La plantilla solo
+  usaría los parámetros como env vars.
+- (B) Importar las identidades manuales al stack (`resource import`) para que CFN las
+  tome bajo su control, y usar el parámetro `SesRecipientsList` ya agregado a la
+  plantilla.
+
+La plantilla del repo (rama `kiroday`) ya tiene la corrección de diseño
+(`SesRecipient` para la identidad + `SesRecipientsList` para la env var, con
+`Condition HasRecipientsList`), pero el stack desplegado todavía no la refleja.
+
+### Entrega por destinatario (diagnóstico 2026-10-02)
+
+Envío a los 3 destinatarios `@tailoy.com.pe`: SES reportó **Delivery (`250`)** para los
+tres (FortiMail aceptó los mensajes). `madelgado@` lo recibió en bandeja; `dchu@` no
+lo vio — como SES confirmó entrega, el mensaje está dentro del sistema de Tai Loy
+(probable cuarentena/filtro de FortiMail del buzón de dchu). No es un problema del
+flujo ni de SES.
+
+---
+
 ## 6. Lo que NO se tocó (recursos preexistentes)
 
 - **Bucket de producción `tailoy-poc-s3-bucket-raw`:** no se modificó. Ya tenía una
