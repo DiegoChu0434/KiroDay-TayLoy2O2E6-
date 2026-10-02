@@ -403,6 +403,7 @@ datos de negocio).
 | **Inference profile obligatorio** | Invocar siempre `us.anthropic.claude-sonnet-5-5` (inference profile, cross-region). El modelId plano `anthropic.claude-sonnet-5-5` **falla** con `ValidationException: on-demand throughput isn't supported`. |
 | **SCP de la organización** | La org (`o-18nyn14y7h`, SCP `p-hhd712q9`) bloquea a propósito los *foundation-models* directos; en el playground aparece como *explicit deny*. El inference profile `us.*` sí está permitido. |
 | **`temperature` deprecado** | Sonnet 5.5 deprecó `temperature` (y muy probablemente `top_p`). Pasarlo da `ValidationException`. En `inferenceConfig` enviar **solo `maxTokens`**. |
+| **`maxTokens` incluye el reasoning** | Sonnet 5.5 consume presupuesto de salida razonando antes de responder. Con `maxTokens` bajo (p. ej. 350) `stopReason=max_tokens` y el único bloque es `reasoningContent` → la narrativa sale **vacía** y cae al fallback. Usar **`maxTokens≈2000`** (`BEDROCK_MAX_TOKENS=2000`). Verificado: 2000 → `end_turn`, ~850 tokens, ~6 s. |
 | **Parseo de la respuesta** | La respuesta puede traer bloques `reasoningContent` antes del texto. Al recorrer `output.message.content`, quedarse solo con los bloques que tengan clave `text`; no asumir que `content[0]` es el texto. |
 | **Rendimiento (256 MB)** | Invocación completa ~1.6 s, init ~0.5 s, ~78 tokens in / 150 out para un resumen corto. Para 1 correo/día, costo y latencia despreciables. Timeout de Lambda 30 s suficiente. |
 
@@ -457,7 +458,7 @@ rt = boto3.client("bedrock-runtime")
 resp = rt.converse(
     modelId=MODEL_ID,
     messages=[{"role": "user", "content": [{"text": prompt}]}],
-    inferenceConfig={"maxTokens": 150},        # NO pasar 'temperature' (deprecado en 5.5)
+    inferenceConfig={"maxTokens": 2000},       # NO 'temperature' (deprecado en 5.5); 2000 porque el reasoning consume presupuesto
 )
 # La respuesta puede traer bloques de reasoning; tomar solo los de texto:
 text = "".join(b["text"] for b in resp["output"]["message"]["content"] if "text" in b)

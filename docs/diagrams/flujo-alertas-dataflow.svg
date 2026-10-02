@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 728 456" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="flujo-alertas-title flujo-alertas-desc" id="flujo-alertas-dataflow-root">
+        <title id="flujo-alertas-title">Flujo de alertas de integración AS/400 a SAP</title>
+        <desc id="flujo-alertas-desc">Pipeline serverless en AWS que ingiere el CSV de errores HA00, clasifica por causa raíz, detecta en CloudWatch, sintetiza la narrativa con Bedrock y entrega un correo consolidado por SES.</desc>
+        <defs>
+      <style>@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&amp;family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500;600&amp;family=Noto+Serif:ital@0;1&amp;family=Noto+Sans+KR:wght@400;500;600&amp;family=Noto+Serif+KR:wght@400&amp;family=Noto+Sans+TC:wght@400;500;600&amp;family=Noto+Serif+TC:wght@400&amp;display=swap');
+      #flujo-alertas-dataflow-root { --color-paper:   #fafaf7;
+      --color-paper2:  #eef0ec;
+      --color-ink:     #10241a;
+      --color-muted:   #4a7a5f;
+      --color-soft:    #7fae92;
+      --color-accent:  #00a160;   
+      --color-yellow:  #FFD400;   
+      --color-link:    #1e4389;   
+      --font-sans:     'Roboto', 'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Roboto Mono', 'Geist Mono', ui-monospace, monospace; }
+      #flujo-alertas-dataflow-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #flujo-alertas-dataflow-root .diagram-container { width: 100%; overflow-x: auto; }
+      #flujo-alertas-dataflow-root .brand-bar { display: flex; gap: 4px; margin-bottom: 0; }
+      #flujo-alertas-dataflow-root .brand-bar span { height: 5px; border-radius: 3px; }
+      #flujo-alertas-dataflow-root .brand-bar span:first-child { width: 56px; background: var(--color-accent); }
+      #flujo-alertas-dataflow-root .brand-bar span:last-child { width: 20px; background: var(--color-yellow); }
+      #flujo-alertas-dataflow-root .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; }
+      #flujo-alertas-dataflow-root .masthead-text { flex: 1; }
+      #flujo-alertas-dataflow-root .brand-logo { flex-shrink: 0; width: 96px; height: 96px; border-radius: 10px; display: block; }
+      #flujo-alertas-dataflow-root .diagram-container { overflow-x: visible; }</style>
+          <pattern id="flujo-alertas-dataflow-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+            <circle cx="11" cy="11" r="0.8" fill="#10241a" fill-opacity="0.10"/>
+          </pattern>
+          <marker id="flujo-alertas-dataflow-arr-muted" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#4a7a5f"/></marker>
+          <marker id="flujo-alertas-dataflow-arr-accent" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#00a160"/></marker>
+          <marker id="flujo-alertas-dataflow-arr-link" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#1e4389"/></marker>
+        </defs>
+
+        <!-- background -->
+        <rect width="728" height="456" fill="#fafaf7"/>
+        <rect width="728" height="456" fill="url(#flujo-alertas-dataflow-dots)" opacity="0.55"/>
+
+
+        <!-- lane tints (odd lanes 1,3) -->
+        <rect x="0" y="116" width="728" height="80" fill="#10241a" fill-opacity="0.018"/>
+        <rect x="0" y="276" width="728" height="80" fill="#10241a" fill-opacity="0.018"/>
+
+        <!-- lane dividers -->
+        <line x1="0" y1="36"  x2="728" y2="36"  stroke="#10241a" stroke-opacity="0.12" stroke-width="0.8"/>
+        <line x1="0" y1="116" x2="728" y2="116" stroke="#10241a" stroke-opacity="0.12" stroke-width="0.8"/>
+        <line x1="0" y1="196" x2="728" y2="196" stroke="#10241a" stroke-opacity="0.12" stroke-width="0.8"/>
+        <line x1="0" y1="276" x2="728" y2="276" stroke="#10241a" stroke-opacity="0.12" stroke-width="0.8"/>
+        <line x1="0" y1="356" x2="728" y2="356" stroke="#10241a" stroke-opacity="0.12" stroke-width="0.8"/>
+        <!-- label column border -->
+        <line x1="140" y1="36" x2="140" y2="356" stroke="#10241a" stroke-opacity="0.12" stroke-width="0.8"/>
+
+        <!-- ======== STEP HEADER CHIPS ======== -->
+        <!-- 01 INGESTA -->
+        <rect x="180" y="6" width="32" height="16" rx="8" fill="#10241a" fill-opacity="0.12"/>
+        <text x="196" y="14" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="700" fill="#10241a">01</text>
+        <text x="196" y="29" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#4a7a5f">INGESTA</text>
+        <!-- 02 CLASIFICA -->
+        <rect x="292" y="6" width="32" height="16" rx="8" fill="#10241a" fill-opacity="0.12"/>
+        <text x="308" y="14" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="700" fill="#10241a">02</text>
+        <text x="308" y="29" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#4a7a5f">CLASIFICA</text>
+        <!-- 03 DETECTA -->
+        <rect x="404" y="6" width="32" height="16" rx="8" fill="#10241a" fill-opacity="0.12"/>
+        <text x="420" y="14" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="700" fill="#10241a">03</text>
+        <text x="420" y="29" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#4a7a5f">DETECTA</text>
+        <!-- 04 SINTETIZA (focal) -->
+        <rect x="516" y="6" width="32" height="16" rx="8" fill="#00a160" fill-opacity="0.20"/>
+        <text x="532" y="14" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="700" fill="#00a160">04</text>
+        <text x="532" y="29" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#00a160">SINTETIZA</text>
+        <!-- 05 ENTREGA -->
+        <rect x="628" y="6" width="32" height="16" rx="8" fill="#10241a" fill-opacity="0.12"/>
+        <text x="644" y="14" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="700" fill="#10241a">05</text>
+        <text x="644" y="29" text-anchor="middle" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#4a7a5f">ENTREGA</text>
+
+        <!-- ======== LANE LABELS ======== -->
+        <text x="70" y="72" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">ORIGEN</text>
+        <text x="70" y="84" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">AS/400 · S3</text>
+
+        <text x="70" y="152" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">ANÁLISIS</text>
+        <text x="70" y="164" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">LAMBDA</text>
+
+        <text x="70" y="232" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">OBSERVA.</text>
+        <text x="70" y="244" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">CW · SNS</text>
+
+        <text x="70" y="312" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">NOTIFICA.</text>
+        <text x="70" y="324" text-anchor="middle" font-family="var(--font-mono)" font-size="8" font-weight="500" letter-spacing="0.18em" fill="#4a7a5f">LAMBDA · SES</text>
+
+        <!-- ======== ARROWS (before nodes) ======== -->
+        <!-- 01 ORIGEN(s0) -> 02 ANALISIS(s1): down + right, single bend -->
+        <path d="M 196 108 L 196 120 Q 196 124 200 124 L 254 124" fill="none" stroke="#4a7a5f" stroke-width="1" marker-end="url(#flujo-alertas-dataflow-arr-muted)"/>
+        <!-- 02 ANALISIS(s1) -> 03 OBSERVA(s2): down + right -->
+        <path d="M 308 188 L 308 200 Q 308 204 312 204 L 366 204" fill="none" stroke="#4a7a5f" stroke-width="1" marker-end="url(#flujo-alertas-dataflow-arr-muted)"/>
+        <!-- 03 OBSERVA(s2) -> 04 NOTIFICA/BEDROCK(s3) FOCAL accent: cross-lane cross-step -->
+        <path d="M 470 236 L 528 236 Q 532 236 532 240 L 532 280" fill="none" stroke="#00a160" stroke-width="1.4" marker-end="url(#flujo-alertas-dataflow-arr-accent)"/>
+        <!-- focal label (beside the vertical segment, with gap) -->
+        <rect x="540" y="250" width="54" height="12" rx="2" fill="#fafaf7"/>
+        <text x="567" y="259" text-anchor="middle" font-family="var(--font-mono)" font-size="8" letter-spacing="0.06em" fill="#00a160">RESUMEN JSON</text>
+        <!-- 04 SINTETIZA(s3) -> 05 ENTREGA(s4) within NOTIFICA lane: link (published) -->
+        <path d="M 582 316 L 594 316" fill="none" stroke="#1e4389" stroke-width="1" marker-end="url(#flujo-alertas-dataflow-arr-link)"/>
+
+        <!-- ======== NODES ======== -->
+        <!-- NODE: ORIGEN s0 -> S3 CSV -->
+        <rect x="146" y="44" width="100" height="64" rx="6" fill="#fafaf7" stroke="#10241a" stroke-opacity="0.25" stroke-width="1"/>
+        <rect x="150" y="48" width="20" height="10" rx="3" fill="#10241a" fill-opacity="0.12"/>
+        <text x="160" y="55.5" text-anchor="middle" font-family="var(--font-mono)" font-size="6" font-weight="600" fill="#10241a">S3</text>
+        <text x="196" y="70" text-anchor="middle" font-family="var(--font-sans)" font-size="9" font-weight="600" fill="#10241a">CSV HA00 diario</text>
+        <text x="196" y="82" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#4a7a5f">2.474 errores · pipe</text>
+        <text x="196" y="94" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#7fae92">ObjectCreated event</text>
+        <rect x="226" y="98" width="16" height="8" rx="3" fill="#5e7a9b"/>
+        <text x="234" y="104" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">DB</text>
+
+        <!-- NODE: ANALISIS s1 -> Lambda analizadora (concern: observability slate-blue) -->
+        <rect x="258" y="124" width="100" height="64" rx="6" fill="#5e7a9b" fill-opacity="0.06" stroke="#5e7a9b" stroke-opacity="0.35" stroke-width="1"/>
+        <rect x="262" y="128" width="20" height="10" rx="3" fill="#5e7a9b" fill-opacity="0.18"/>
+        <text x="272" y="135.5" text-anchor="middle" font-family="var(--font-mono)" font-size="6" font-weight="600" fill="#5e7a9b">λ</text>
+        <text x="308" y="150" text-anchor="middle" font-family="var(--font-sans)" font-size="9" font-weight="600" fill="#5e7a9b">Analizadora</text>
+        <text x="308" y="162" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#4a7a5f">7 reglas causa raíz</text>
+        <text x="308" y="174" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#7fae92">agrupa por cliente</text>
+        <rect x="262" y="178" width="16" height="8" rx="3" fill="#5e7a9b"/>
+        <text x="270" y="184" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">DB</text>
+        <rect x="338" y="178" width="16" height="8" rx="3" fill="#b8915a"/>
+        <text x="346" y="184" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">TB</text>
+
+        <!-- NODE: OBSERVA s2 -> CloudWatch + SNS -->
+        <rect x="370" y="204" width="100" height="64" rx="6" fill="#fafaf7" stroke="#10241a" stroke-opacity="0.25" stroke-width="1"/>
+        <rect x="374" y="208" width="20" height="10" rx="3" fill="#10241a" fill-opacity="0.12"/>
+        <text x="384" y="215.5" text-anchor="middle" font-family="var(--font-mono)" font-size="6" font-weight="600" fill="#10241a">CW</text>
+        <text x="420" y="230" text-anchor="middle" font-family="var(--font-sans)" font-size="9" font-weight="600" fill="#10241a">Métricas + SNS</text>
+        <text x="420" y="242" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#4a7a5f">alarmas por severidad</text>
+        <text x="420" y="254" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#7fae92">fan-out del lote</text>
+        <rect x="374" y="258" width="16" height="8" rx="3" fill="#b8915a"/>
+        <text x="382" y="264" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">TB</text>
+        <rect x="450" y="258" width="16" height="8" rx="3" fill="#4a7c59"/>
+        <text x="458" y="264" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">LS</text>
+
+        <!-- NODE: NOTIFICA s3 -> Lambda sintetizadora (FOCAL - Bedrock) -->
+        <rect x="482" y="284" width="100" height="64" rx="6" fill="#00a160" fill-opacity="0.07" stroke="#00a160" stroke-width="1.4"/>
+        <rect x="486" y="288" width="20" height="10" rx="3" fill="#00a160" fill-opacity="0.20"/>
+        <text x="496" y="295.5" text-anchor="middle" font-family="var(--font-mono)" font-size="6" font-weight="600" fill="#00a160">AI</text>
+        <text x="532" y="310" text-anchor="middle" font-family="var(--font-sans)" font-size="9" font-weight="600" fill="#10241a">Sintetizadora</text>
+        <text x="532" y="322" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#4a7a5f">Bedrock Sonnet 5.5</text>
+        <text x="532" y="334" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#7fae92">cifras en código</text>
+        <rect x="486" y="338" width="16" height="8" rx="3" fill="#4a7c59"/>
+        <text x="494" y="344" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">LS</text>
+        <rect x="562" y="338" width="16" height="8" rx="3" fill="#9c6b50"/>
+        <text x="570" y="344" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">FL</text>
+
+        <!-- NODE: ENTREGA s4 -> SES / correo -->
+        <rect x="594" y="284" width="100" height="64" rx="6" fill="#fafaf7" stroke="#1e4389" stroke-opacity="0.4" stroke-width="1"/>
+        <rect x="598" y="288" width="20" height="10" rx="3" fill="#1e4389" fill-opacity="0.18"/>
+        <text x="608" y="295.5" text-anchor="middle" font-family="var(--font-mono)" font-size="6" font-weight="600" fill="#1e4389">SES</text>
+        <text x="644" y="310" text-anchor="middle" font-family="var(--font-sans)" font-size="9" font-weight="600" fill="#1e4389">Correo accionable</text>
+        <text x="644" y="322" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#4a7a5f">1 por lote · HTML</text>
+        <text x="644" y="334" text-anchor="middle" font-family="var(--font-mono)" font-size="6.5" fill="#7fae92">runbook + responsable</text>
+        <rect x="598" y="338" width="16" height="8" rx="3" fill="#9c6b50"/>
+        <text x="606" y="344" text-anchor="middle" font-family="var(--font-mono)" font-size="5" font-weight="700" fill="#fff">FL</text>
+
+        <!-- ======== LEGEND (4 rows) ======== -->
+        <!-- Row 1 STEPS -->
+        <text x="144" y="376" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#7fae92">STEPS</text>
+        <text x="196" y="376" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">01 ingesta</text>
+        <text x="268" y="376" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">02 clasifica</text>
+        <text x="348" y="376" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">03 detecta</text>
+        <text x="420" y="376" font-family="var(--font-mono)" font-size="7" font-weight="700" fill="#00a160">04 sintetiza</text>
+        <text x="502" y="376" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">05 entrega</text>
+
+        <!-- Row 2 DATA TYPE -->
+        <text x="144" y="397" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#7fae92">DATOS</text>
+        <rect x="196" y="390" width="14" height="8" rx="2" fill="#5e7a9b"/><text x="214" y="397" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">DB raw</text>
+        <rect x="258" y="390" width="14" height="8" rx="2" fill="#b8915a"/><text x="276" y="397" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">TB tabla</text>
+        <rect x="324" y="390" width="14" height="8" rx="2" fill="#4a7c59"/><text x="342" y="397" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">LS evento</text>
+        <rect x="392" y="390" width="14" height="8" rx="2" fill="#9c6b50"/><text x="410" y="397" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">FL correo</text>
+        <text x="462" y="397" font-family="var(--font-mono)" font-size="6.5" fill="#7fae92">izq = entra · der = sale</text>
+
+        <!-- Row 3 CONCERN -->
+        <text x="144" y="419" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#7fae92">FOCO</text>
+        <rect x="196" y="412" width="14" height="8" rx="2" fill="#5e7a9b" fill-opacity="0.5"/><text x="214" y="419" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">clasificación</text>
+        <rect x="300" y="412" width="14" height="8" rx="2" fill="#00a160"/><text x="318" y="419" font-family="var(--font-mono)" font-size="7" fill="#00a160">síntesis con IA (focal)</text>
+
+        <!-- Row 4 FLOW -->
+        <text x="144" y="440" font-family="var(--font-mono)" font-size="7" font-weight="500" letter-spacing="0.14em" fill="#7fae92">FLUJO</text>
+        <line x1="196" y1="437" x2="216" y2="437" stroke="#4a7a5f" stroke-width="1" marker-end="url(#flujo-alertas-dataflow-arr-muted)"/><text x="222" y="440" font-family="var(--font-mono)" font-size="7" fill="#4a7a5f">hand-off</text>
+        <line x1="290" y1="437" x2="310" y2="437" stroke="#00a160" stroke-width="1.4" marker-end="url(#flujo-alertas-dataflow-arr-accent)"/><text x="316" y="440" font-family="var(--font-mono)" font-size="7" fill="#00a160">entrada a IA</text>
+        <line x1="408" y1="437" x2="428" y2="437" stroke="#1e4389" stroke-width="1" marker-end="url(#flujo-alertas-dataflow-arr-link)"/><text x="434" y="440" font-family="var(--font-mono)" font-size="7" fill="#1e4389">entregado</text>
+      </svg>

@@ -38,6 +38,17 @@ Parameters:
       plano: la org bloquea foundation-models directos via SCP y el modelId plano
       falla con on-demand throughput isn't supported).
 
+  BedrockMaxTokens:
+    Type: Number
+    Default: 2000
+    MinValue: 500
+    MaxValue: 8192
+    Description: >
+      Tope de tokens de salida de Bedrock para la narrativa. Sonnet 5.5 consume
+      presupuesto razonando antes de responder: con valores bajos (p.ej. 350) la
+      respuesta sale vacia (stopReason=max_tokens, solo reasoningContent) y cae al
+      fallback. No bajar de ~1500.
+
   CriticalThreshold:
     Type: Number
     Default: 1
@@ -246,7 +257,7 @@ Resources:
           SES_SENDER: !Ref SesSender
           SES_RECIPIENT: !Ref SesRecipient
           MODEL_ID: !Ref ModelId
-          BEDROCK_MAX_TOKENS: "350"
+          BEDROCK_MAX_TOKENS: !Ref BedrockMaxTokens
       Code:
         ZipFile: |
           import json, os, logging
@@ -257,8 +268,9 @@ Resources:
           # cliente Bedrock con timeouts por debajo del timeout de la Lambda (30s)
           bedrock=boto3.client("bedrock-runtime",config=Config(connect_timeout=3,read_timeout=12,retries={"max_attempts":1}))
           SENDER=os.environ.get("SES_SENDER",""); RECIP=os.environ.get("SES_RECIPIENT","")
+          RECIPS=[r.strip() for r in RECIP.replace(";",",").split(",") if r.strip()]  # uno o varios destinatarios
           MODEL_ID=os.environ.get("MODEL_ID","us.anthropic.claude-sonnet-5-5")
-          MAXTOK=int(os.environ.get("BEDROCK_MAX_TOKENS","350"))
+          MAXTOK=int(os.environ.get("BEDROCK_MAX_TOKENS","2000"))
           COLOR={"CRITICA":"#c0392b","WARNING":"#e67e22","INFO":"#2980b9"}
           SYS="Eres un asistente de operaciones de datos maestros de Tai Loy que redacta alertas accionables para la integracion AS/400 -> SAP. Escribe en espanol, tono profesional y directo. NUNCA inventes ni recalcules cifras: usa EXCLUSIVAMENTE los numeros entregados."
           def prompt(sm):
@@ -320,12 +332,12 @@ Resources:
             L.append(""); L.append(f"Stock/ATP: {sm.get('alerta_stock',{}).get('conteo',0)} docs")
             return "\n".join(L)
           def handler(event,context):
-            if not SENDER or not RECIP: raise RuntimeError("SES_SENDER y SES_RECIPIENT requeridos")
+            if not SENDER or not RECIPS: raise RuntimeError("SES_SENDER y SES_RECIPIENT requeridos")
             for rec in event.get("Records",[]):
               sm=json.loads(rec["Sns"]["Message"])
               nt,o=narr_ia(sm)
               tot=sm["lote"]["total_errores"]; fn=sm["lote"]["key"].split("/")[-1]
-              ses.send_email(Source=SENDER,Destination={"ToAddresses":[RECIP]},Message={"Subject":{"Data":f"[AS400->SAP] {tot} errores - {fn}","Charset":"UTF-8"},"Body":{"Text":{"Data":text(sm,nt),"Charset":"UTF-8"},"Html":{"Data":html(sm,narr_html(nt,o)),"Charset":"UTF-8"}}})
+              ses.send_email(Source=SENDER,Destination={"ToAddresses":RECIPS},Message={"Subject":{"Data":f"[AS400->SAP] {tot} errores - {fn}","Charset":"UTF-8"},"Body":{"Text":{"Data":text(sm,nt),"Charset":"UTF-8"},"Html":{"Data":html(sm,narr_html(nt,o)),"Charset":"UTF-8"}}})
               logger.info("Correo enviado narrativa=%s",o)
             return {"statusCode":200}
 

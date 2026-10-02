@@ -21,7 +21,8 @@ param(
     [string]$Region = "us-east-1",
     [string]$StackName = "ha00-alertas",
     [string]$BucketName = "tailoy-poc-s3-bucket-raw",
-    [string]$ErrorPrefix = "tai-loy/maestro/raw/ASPRD.ha00/"
+    [string]$ErrorPrefix = "tai-loy/maestro/raw/ASPRD.ha00/",
+    [int]$BedrockMaxTokens = 2000
 )
 
 $ErrorActionPreference = "Stop"
@@ -41,6 +42,7 @@ aws cloudformation deploy `
         SesRecipient="$Recipient" `
         RawBucketName="$BucketName" `
         ErrorPrefix="$ErrorPrefix" `
+        BedrockMaxTokens="$BedrockMaxTokens" `
     --capabilities CAPABILITY_NAMED_IAM `
     --region $Region --profile $Profile
 

@@ -22,3 +22,5 @@ dist/
 .idea/
 .DS_Store
 Thumbs.db
+# Kiro IDE (config local, no versionar)
+.kiro/

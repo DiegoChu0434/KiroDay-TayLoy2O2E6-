@@ -27,9 +27,11 @@ Datos técnicos validados en la PoC (cuenta 971431176203, us-east-1):
 
 Variables de entorno:
   SES_SENDER      remitente verificado en SES (obligatorio)
-  SES_RECIPIENT   destinatario (obligatorio)
+  SES_RECIPIENT   destinatario(s) (obligatorio). Uno o varios correos separados
+                  por coma: "a@dom.com,b@dom.com". Todos reciben el mismo correo.
   MODEL_ID        inference profile Bedrock (default us.anthropic.claude-sonnet-5-5)
-  BEDROCK_MAX_TOKENS  tope de tokens de salida (default 350)
+  BEDROCK_MAX_TOKENS  tope de tokens de salida (default 2000; Sonnet 5.5 consume
+                      presupuesto en reasoning, por eso no bajar de ~1500)
   AWS_REGION      región (la inyecta Lambda automáticamente)
 """
 
@@ -54,9 +56,11 @@ _bedrock_cfg = Config(
 bedrock = boto3.client("bedrock-runtime", config=_bedrock_cfg)
 
 SES_SENDER = os.environ.get("SES_SENDER", "")
+# SES_RECIPIENT admite uno o varios correos separados por coma (y/o punto y coma).
 SES_RECIPIENT = os.environ.get("SES_RECIPIENT", "")
+RECIPIENTS = [r.strip() for r in SES_RECIPIENT.replace(";", ",").split(",") if r.strip()]
 MODEL_ID = os.environ.get("MODEL_ID", "us.anthropic.claude-sonnet-5-5")
-BEDROCK_MAX_TOKENS = int(os.environ.get("BEDROCK_MAX_TOKENS", "350"))
+BEDROCK_MAX_TOKENS = int(os.environ.get("BEDROCK_MAX_TOKENS", "2000"))
 
 SEVERIDAD_COLOR = {
     "CRITICA": "#c0392b",
@@ -338,7 +342,7 @@ def build_text(summary, narrativa=""):
 
 def handler(event, context):
     logger.info("Evento SNS recibido.")
-    if not SES_SENDER or not SES_RECIPIENT:
+    if not SES_SENDER or not RECIPIENTS:
         raise RuntimeError("SES_SENDER y SES_RECIPIENT deben estar configurados.")
 
     for record in event.get("Records", []):
@@ -355,7 +359,7 @@ def handler(event, context):
 
         resp = ses.send_email(
             Source=SES_SENDER,
-            Destination={"ToAddresses": [SES_RECIPIENT]},
+            Destination={"ToAddresses": RECIPIENTS},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
                 "Body": {
