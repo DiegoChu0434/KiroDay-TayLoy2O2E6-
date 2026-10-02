@@ -17,7 +17,11 @@ S3 (nuevo CSV)
                                  ├─ agrupa por cliente + categoría
                                  ├─ emite métricas a CloudWatch
                                  └─ publica resumen en SNS
-                                        └─> Lambda formateadora ─> SES ─> 📧
+                                        └─> Lambda sintetizadora
+                                              ├─ cifras en código (determinista)
+                                              ├─ narrativa con Bedrock (Claude Sonnet 5.5)
+                                              ├─ fallback a plantilla si la IA falla
+                                              └─ SES ─> 📧
    CloudWatch Alarms (errores críticos) ──┘
 ```
 
@@ -33,7 +37,7 @@ S3 (nuevo CSV)
 │   └── ha00_20260930.csv                                   # dataset de ejemplo (log real)
 ├── src/
 │   ├── analyzer/analyzer.py                                # Lambda analizadora (standalone)
-│   └── email_formatter/email_formatter.py                  # Lambda formateadora (standalone)
+│   └── email_formatter/email_formatter.py                  # Lambda sintetizadora: Bedrock + fallback (standalone)
 ├── infra/
 │   └── cloudformation.yaml                                 # IaC: toda la infraestructura
 ├── tests/
@@ -69,8 +73,9 @@ fallas de migración.
 
 ### Requisitos previos
 
-- AWS CLI configurado con un profile con permisos de escritura (Lambda, IAM, SNS, SES, CloudWatch, CloudFormation).
+- AWS CLI configurado con un profile con permisos de escritura (Lambda, IAM, SNS, SES, CloudWatch, CloudFormation, Bedrock).
 - Región: `us-east-1` (donde está el bucket `tailoy-poc-s3-bucket-raw`).
+- Acceso a **Amazon Bedrock** con el inference profile `us.anthropic.claude-sonnet-5-5` habilitado (la Lambda sintetizadora redacta la narrativa con IA; si Bedrock no está disponible, cae a una plantilla y la alerta igual se envía). Ver detalle técnico en `docs/especificaciones-alertas-integracion-as400-sap.md` §4.6.
 
 ### 1. Desplegar la infraestructura
 

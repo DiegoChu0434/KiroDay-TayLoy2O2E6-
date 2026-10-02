@@ -183,8 +183,14 @@ Totales del lote analizado (2.474 registros):
 │  SNS  Topic "ha00-alertas"                                            │
 │         │ (5) invoca                                                  │
 │         ▼                                                             │
-│  Lambda  "ha00-email-formatter"  →  SES  →  📧 bandeja personal       │
-│   (compone UN correo estructurado consolidado por lote)              │
+│  Lambda  "ha00-email" (SINTETIZADORA)                                 │
+│   - calcula tablas/cifras en codigo (determinista)                   │
+│   - llama a Bedrock (Claude Sonnet 5.5) para la NARRATIVA             │
+│   - ensambla el correo (datos duros + narrativa IA)                  │
+│   - fallback a plantilla si Bedrock falla                            │
+│         │                                                             │
+│         ▼                                                             │
+│  SES  ->  bandeja personal (UN correo consolidado por lote)           │
 │                                                                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -198,7 +204,9 @@ Totales del lote analizado (2.474 registros):
 | Observabilidad | CloudWatch Metrics + Logs | Almacenar conteos por categoría/severidad y evaluar reglas |
 | Reglas de detección | CloudWatch Alarms / Metric Filters | Detectar automáticamente los tipos de error y disparar |
 | Enrutamiento de alertas | SNS Topic | Punto único de fan-out de alertas |
-| Formato y envío de correo | Lambda (Python) + SES | Componer un único email estructurado y enviarlo |
+| Síntesis del correo | Lambda (Python) + Amazon Bedrock | Calcular cifras en código y redactar la narrativa con IA (patrón híbrido) |
+| Redacción (IA) | Amazon Bedrock — Claude Sonnet 5.5 | Resumen ejecutivo y próxima acción en lenguaje natural |
+| Envío de correo | SES | Enviar un único email estructurado consolidado |
 | Destino | Email (bandeja personal) | Recibir la alerta consolidada |
 
 ### 4.3 Detección en CloudWatch (clave del RF-01)
@@ -234,7 +242,93 @@ Un solo email por lote, con secciones:
 5. **Siguiente acción sugerida** por categoría.
 6. **Enlace** al CSV en S3 y a los logs/dashboard.
 
-Flujo técnico: CloudWatch Alarm → SNS → Lambma formateadora → SES (correo HTML estructurado). La consolidación en **un único correo** se logra formateando en la Lambda a partir del resumen del lote (no un correo por alarma).
+Flujo técnico: CloudWatch Alarm → SNS → Lambda sintetizadora → SES (correo HTML estructurado). La consolidación en **un único correo** se logra formateando en la Lambda a partir del resumen del lote (no un correo por alarma).
+
+### 4.6 Síntesis del correo con IA — Amazon Bedrock (decisión de arquitectura)
+
+La Lambda que arma el correo evoluciona de **formateadora rígida** a **sintetizadora**:
+usa **Amazon Bedrock (Claude Sonnet 5.5)** para redactar la narrativa, manteniendo
+las cifras calculadas en código. Validado end-to-end en la cuenta `971431176203`
+(`us-east-1`, profile `tailoydev`).
+
+#### Patrón híbrido: la IA redacta, el código manda los números
+
+Regla de oro: **la IA no inventa ni recalcula cifras** (riesgo de alucinación sobre
+datos de negocio).
+
+- **El código calcula y renderiza** (determinista, auditable): totales, conteos por
+  categoría, %, top clientes, tabla de severidades, sección de stock. Sale directo
+  del JSON del analizador.
+- **La IA redacta**: resumen ejecutivo (2-4 frases) y "próxima acción sugerida" por
+  equipo responsable, en tono accionable. En el prompt se le pasan las cifras ya
+  calculadas y se le prohíbe explícitamente generar otras.
+
+#### Datos técnicos críticos (validados en la PoC — no omitir)
+
+| Punto | Detalle |
+|-------|---------|
+| **Inference profile obligatorio** | Invocar siempre `us.anthropic.claude-sonnet-5-5` (inference profile, cross-region). El modelId plano `anthropic.claude-sonnet-5-5` **falla** con `ValidationException: on-demand throughput isn't supported`. |
+| **SCP de la organización** | La org (`o-18nyn14y7h`, SCP `p-hhd712q9`) bloquea a propósito los *foundation-models* directos; en el playground aparece como *explicit deny*. El inference profile `us.*` sí está permitido. |
+| **`temperature` deprecado** | Sonnet 5.5 deprecó `temperature` (y muy probablemente `top_p`). Pasarlo da `ValidationException`. En `inferenceConfig` enviar **solo `maxTokens`**. |
+| **Parseo de la respuesta** | La respuesta puede traer bloques `reasoningContent` antes del texto. Al recorrer `output.message.content`, quedarse solo con los bloques que tengan clave `text`; no asumir que `content[0]` es el texto. |
+| **Rendimiento (256 MB)** | Invocación completa ~1.6 s, init ~0.5 s, ~78 tokens in / 150 out para un resumen corto. Para 1 correo/día, costo y latencia despreciables. Timeout de Lambda 30 s suficiente. |
+
+#### Resiliencia (requisito, no opcional)
+
+- **Fallback a plantilla**: si Bedrock falla, da timeout o devuelve vacío, la Lambda
+  cae a una narrativa plantillada determinista y **envía el correo igual**. La alerta
+  nunca se bloquea por la IA (llamada envuelta en `try/except`).
+- **Timeouts**: el cliente boto3 de Bedrock se configura por debajo del timeout de la
+  Lambda (`connect_timeout=3s`, `read_timeout=12s`, `max_attempts=1` vs. Lambda 30 s).
+- **Idempotencia (RNF-05)**: reprocesar el mismo CSV no debe duplicar correos.
+
+#### Permiso IAM requerido
+
+El rol de la Lambda sintetizadora necesita `bedrock:InvokeModel` sobre el inference
+profile y los foundation-models subyacentes (por el cross-region del perfil `us.*`):
+
+```json
+{
+  "Effect": "Allow",
+  "Action": ["bedrock:InvokeModel"],
+  "Resource": [
+    "arn:aws:bedrock:*:971431176203:inference-profile/us.anthropic.claude-sonnet-5-5",
+    "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-5-5"
+  ]
+}
+```
+
+Variable de entorno de la Lambda: `MODEL_ID=us.anthropic.claude-sonnet-5-5`.
+
+#### Diseño del prompt
+
+- **System**: rol = "asistente de operaciones de datos maestros de Tai Loy que redacta
+  alertas accionables para la integración AS/400 → SAP".
+- **User**: inyecta el JSON del resumen del lote + instrucciones de salida (idioma
+  español, longitud, secciones, mencionar equipos responsables por categoría, no
+  inventar cifras). Salida en texto que el código incrusta en la plantilla del correo.
+
+#### Modelos disponibles en la cuenta (alternativas)
+
+Verificado con `list-inference-profiles` (todos ACTIVE como inference profile `us.*` /
+`global.*`): Sonnet 5.5, Sonnet 5, Sonnet 4.5/4.6, Opus 4.1→5.5, Haiku 4.5, Fable
+5/5.1. Si el volumen de correos crece y se busca abaratar, **Haiku 4.5** es la
+alternativa económica para redacción (cambiar solo el parámetro `ModelId`).
+
+#### Snippet de referencia (validado en la PoC)
+
+```python
+import boto3
+MODEL_ID = "us.anthropic.claude-sonnet-5-5"   # inference profile, NO el modelId plano
+rt = boto3.client("bedrock-runtime")
+resp = rt.converse(
+    modelId=MODEL_ID,
+    messages=[{"role": "user", "content": [{"text": prompt}]}],
+    inferenceConfig={"maxTokens": 150},        # NO pasar 'temperature' (deprecado en 5.5)
+)
+# La respuesta puede traer bloques de reasoning; tomar solo los de texto:
+text = "".join(b["text"] for b in resp["output"]["message"]["content"] if "text" in b)
+```
 
 ---
 
@@ -246,17 +340,21 @@ Flujo técnico: CloudWatch Alarm → SNS → Lambma formateadora → SES (correo
 | Dónde corre el análisis | **Nativo en AWS / CloudWatch**, sin prototipo local | Pedido explícito del negocio |
 | Tratamiento de stock/ATP | **Alerta diferenciada** dentro del flujo general | Pedido explícito del negocio |
 | Agrupación | Por cliente + categoría | Reduce 1.480 líneas a ~370 clientes reales |
+| Redacción del correo | **Lambda sintetizadora con Bedrock (Claude Sonnet 5.5)**, patrón híbrido | IA redacta narrativa accionable; el código mantiene las cifras (determinista, auditable) |
+| Invocación de Bedrock | **Inference profile `us.*`** (no modelId plano) | El modelId plano falla; la org bloquea foundation-models directos vía SCP |
+| Infraestructura como código | **CloudFormation** (`infra/cloudformation.yaml`) | Versionable, autocontenida (código Lambda inline) |
 
 ## 6. Pendientes / decisiones abiertas
 
 - [ ] Correo destino exacto y verificación en SES (¿dominio `tailoy.com.pe` o correo puntual?).
 - [ ] ¿SES está en sandbox o producción en la cuenta? Afecta a qué destinatarios se puede enviar.
-- [ ] Perfil/rol con permisos de **escritura** para desplegar (el actual es read-only).
+- [x] Perfil/rol con permisos de **escritura** para desplegar. **Resuelto**: profile `tailoydev` con `AWSAdministratorAccess`.
 - [ ] Detalles adicionales del negocio sobre la **alerta diferenciada de stock** (qué incluir, a quién, umbral).
 - [ ] Umbrales finales por categoría (porcentajes vs. mínimos absolutos).
 - [ ] ¿Se requiere dashboard (QuickSight/Grafana/CloudWatch Dashboard) además del correo?
-- [ ] Región de despliegue (el bucket está en `us-east-1`).
-- [ ] Infraestructura como código: ¿CloudFormation, CDK o Terraform?
+- [x] Región de despliegue. **Resuelto**: `us-east-1` (donde está el bucket).
+- [x] Infraestructura como código. **Resuelto**: **CloudFormation** (`infra/cloudformation.yaml`).
+- [x] Modelo de IA para la narrativa. **Resuelto**: Claude Sonnet 5.5 vía inference profile `us.anthropic.claude-sonnet-5-5`.
 
 ## 7. Fases de implementación
 
@@ -264,7 +362,7 @@ Flujo técnico: CloudWatch Alarm → SNS → Lambma formateadora → SES (correo
 |------|---------|--------|
 | **Fase 0** | Documento de requerimientos y diseño (este archivo) | En curso |
 | **Fase 1** | Analizador + clasificación + métricas CloudWatch + alarmas | Pendiente |
-| **Fase 2** | SNS + Lambda formateadora + SES (correo consolidado) | Pendiente |
+| **Fase 2** | SNS + Lambda sintetizadora (Bedrock + fallback) + SES (correo consolidado) | Pendiente |
 | **Fase 3** | Alerta diferenciada de stock afinada con negocio | Pendiente |
 | **Fase 4** | Reproceso automatizado de errores transitorios | Futuro |
 
@@ -282,4 +380,21 @@ Verificación de identidad:
 
 ```powershell
 aws sts get-caller-identity --profile tailoydev
+```
+
+Listar inference profiles de Sonnet 5.5 disponibles:
+
+```powershell
+aws bedrock list-inference-profiles --region us-east-1 --profile tailoydev `
+  --query "inferenceProfileSummaries[?contains(inferenceProfileId, 'sonnet-5-5')].{Id:inferenceProfileId,Status:status}" --output table
+```
+
+Probar la invocación (converse) con el inference profile:
+
+```powershell
+# messages.json: [{"role":"user","content":[{"text":"Responde: ok bedrock"}]}]
+# infcfg.json:   {"maxTokens":50}
+aws bedrock-runtime converse --region us-east-1 --profile tailoydev `
+  --model-id "us.anthropic.claude-sonnet-5-5" `
+  --messages file://messages.json --inference-config file://infcfg.json
 ```
