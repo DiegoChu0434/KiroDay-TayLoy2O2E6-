@@ -1,18 +1,24 @@
-# De medio día de trabajo manual a una decisión que llega sola
+# Y si los problemas llegaran resueltos a tu bandeja
 
-**El antes.** Cada día, la integración entre el AS/400 y SAP generaba el log `HA00`: 2.474 errores en un archivo plano, pipe-separado, con migración y stock mezclados. No es que nadie lo mirara — había un analista dedicado a eso. El problema era el costo: abrir el CSV, clasificar a mano, cruzar por cliente, armar el resumen y decidir a quién avisar le tomaba **medio día**, todos los días. Trabajo valioso convertido en tarea mecánica.
+Cada mañana, el sistema dejaba una lista enorme de errores. Miles de líneas, sin orden, sin pista de por dónde empezar.
 
-**El quiebre.** La pregunta no fue "¿cómo lee mejor el analista el CSV?", sino "¿por qué un analista está haciendo a mano lo que una regla puede hacer sola?". Así nació el pipeline: serverless, nativo en AWS, sin servidores que mantener.
+Y había una persona esperándolos. Un analista que dedicaba medio día entero a ordenar, cruzar y resumir, solo para saber a quién avisar. Cuando por fin lo sabía, el problema ya llevaba horas creciendo.
 
-**El viaje de un lote.** El archivo aterriza en S3 y eso enciende todo. Una Lambda **analizadora** aplica siete reglas de causa raíz y agrupa por cliente — el código calcula las cifras, auditable. CloudWatch **detecta** por severidad y abre el abanico del lote. Luego entra la pieza que cambia el tono: una Lambda **sintetizadora** con Bedrock que redacta la narrativa. La IA escribe, pero el código manda: si Bedrock falla, hay plantilla de respaldo y la alerta nunca se bloquea por la IA.
+Entonces nos hicimos la pregunta incómoda: ¿por qué una mente brillante pasa el día haciendo lo que una máquina puede hacer sola?
 
-**No es "un correo", son dos entregables.** De la síntesis salen dos caminos complementarios:
+Así que dejamos de ayudar a leer la lista y empezamos a hacer que la lista se leyera sola.
 
-- **El tablero en vivo.** Los errores quedan catalogados en Glue y consultables con Athena; Power BI se conecta en vivo sobre la tabla `errores_detalle`. Cuatro páginas: resumen ejecutivo, causa raíz tipo Pareto, responsables y detalle filtrable — incluso en el celular. Es la capa de **análisis y tendencia**: dónde está el 80% del dolor y a quién le toca.
-- **El correo accionable.** Un único mail HTML por lote, con las cifras ya cruzadas, el runbook y el responsable por causa raíz. No es un aviso, es un **llamado a la acción**: quién hace qué, ahora.
+Hoy, apenas llega la información, todo se pone en marcha sin que nadie lo toque. Se ordena, se entiende y se explica con palabras claras, como si alguien hubiera tenido todo el tiempo del mundo para pensarlo. La inteligencia artificial ayuda a redactar, pero las cifras siempre son exactas y verificables. Y si algo falla, el aviso sale igual.
 
-El mismo dato en dos velocidades: la urgencia que llega a la bandeja de entrada y la tendencia que se consulta en el tablero.
+Lo que llega al negocio son dos regalos hechos del mismo dato:
 
-**El después.** El medio día de trabajo manual se vuelve un proceso automático que entrega **el tablero y el correo** sin intervención. 2.474 líneas se consolidan para ~370 clientes reales, y el análisis revela que una sola causa — clientes sin interlocutores en SAP — explica 1.480 casos. El analista deja de clasificar y pasa a **decidir y actuar** sobre información ya digerida.
+- **Un correo que no informa, manda a actuar.** Uno solo, claro, con lo que pasó, qué hacer y quién se encarga.
+- **Un tablero que no reporta, revela.** Siempre al día, a un clic, hasta desde el celular. Muestra dónde está el problema de verdad.
 
-**El cierre.** No le quitamos el trabajo al analista: le quitamos la parte mecánica. Convertimos medio día de clasificar a mano en dos entregables que llegan solos — uno para entender, otro para actuar.
+Y lo primero que mostró fue una sorpresa: una sola causa explicaba la gran mayoría del dolor. Algo que a mano costaba ver, hoy se ve de un vistazo y se sabe por dónde empezar.
+
+Lo que antes eran miles de líneas de ruido hoy es un mensaje claro. Lo que antes tomaba medio día hoy ocurre solo. Y lo que antes se descubría tarde, hoy se resuelve el mismo día.
+
+No reemplazamos al analista. Le devolvimos el día. Ya no lo gasta descifrando el problema, lo usa para resolverlo.
+
+Los problemas ya no se descubren. Llegan resueltos a quien debe actuar.
