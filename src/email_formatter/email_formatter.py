@@ -80,7 +80,8 @@ def _build_prompt(summary):
     lote = summary["lote"]
     cats = "; ".join(
         f"{c['categoria']}={c['conteo']} ({c['severidad']}, responsable "
-        f"{c.get('solucion', {}).get('area_responsable', c['equipo'])})"
+        f"{c.get('responsable', {}).get('actor', '-')}/"
+        f"{c.get('responsable', {}).get('frente', '-')})"
         for c in summary["categorias"]
     )
     return (
@@ -203,13 +204,21 @@ def _runbooks_html(summary):
             continue
         color = SEVERIDAD_COLOR.get(c["severidad"], "#555")
         pasos = "".join(f"<li style='margin:2px 0'>{p}</li>" for p in sol.get("pasos", []))
+        resp = c.get("responsable", {})
+        resp_linea = (
+            f"<strong>Responsable:</strong> {resp.get('actor', '-')} "
+            f"({resp.get('frente', '-')}) &nbsp;·&nbsp; "
+            f"<a href='mailto:{resp.get('correo', '')}'>{resp.get('correo', '-')}</a>"
+            if resp else ""
+        )
         bloques.append(
             "<div style='border:1px solid #e1e4e8;border-radius:6px;padding:12px 14px;margin:10px 0'>"
             f"<div style='font-weight:600'>{c['categoria']} "
             f"<span style='color:#fff;background:{color};padding:1px 7px;border-radius:3px;font-size:11px'>{c['severidad']}</span> "
             f"<span style='color:#777;font-weight:400'>· {c['conteo']} casos</span></div>"
+            f"<div style='font-size:12px;color:#555;margin:4px 0'>{resp_linea}</div>"
             f"<div style='font-size:12px;color:#555;margin:4px 0'>"
-            f"<strong>Responsable:</strong> {sol.get('area_responsable', '-')} &nbsp;|&nbsp; "
+            f"<strong>Área solución:</strong> {sol.get('area_responsable', '-')} &nbsp;|&nbsp; "
             f"<strong>Sistemas:</strong> {sol.get('sistemas', '-')}</div>"
             f"<ol style='font-size:13px;margin:6px 0 0 18px;padding:0'>{pasos}</ol>"
             "</div>"
@@ -308,8 +317,13 @@ def build_text(summary, narrativa=""):
     lines += ["", "Procedimiento de solucion por causa raiz:"]
     for c in summary["categorias"]:
         sol = c.get("solucion", {})
-        lines.append(f"  * {c['categoria']} -> responsable: {sol.get('area_responsable', '-')}")
-        lines.append(f"    sistemas: {sol.get('sistemas', '-')}")
+        resp = c.get("responsable", {})
+        lines.append(f"  * {c['categoria']}")
+        lines.append(
+            f"    responsable: {resp.get('actor', '-')} ({resp.get('frente', '-')}) "
+            f"- {resp.get('correo', '-')}"
+        )
+        lines.append(f"    area solucion: {sol.get('area_responsable', '-')} | sistemas: {sol.get('sistemas', '-')}")
         for i, paso in enumerate(sol.get("pasos", []), 1):
             lines.append(f"      {i}. {paso}")
     stock = summary.get("alerta_stock", {})

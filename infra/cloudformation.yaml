@@ -168,6 +168,22 @@ Resources:
             "OTRO":{"pasos":["Sin categorizar. Requiere revision manual y definicion de procedimiento."],"sistemas":"Por determinar","area_responsable":"Revision manual"},
           }
           def runbook(c): return RUNBOOKS.get(c,{"pasos":["Sin procedimiento definido."],"sistemas":"Por determinar","area_responsable":"Revision manual"})
+          RESPONSABLES={
+            "CLIENTE":{"frente":"VENTAS","correo":"jsalvatierra@tailoy.com.pe"},
+            "PRODUCTO":{"frente":"LOGISTICA","correo":"eflower@tailoy.com.pe"},
+            "INTERLOCUTOR":{"frente":"DATOS","correo":"datos_maestros@tailoy.com.pe"},
+            "DEUDOR":{"frente":"DATOS","correo":"datos_maestros@tailoy.com.pe"},
+            "PROVEEDOR":{"frente":"LOGISTICA","correo":"eflower@tailoy.com.pe"},
+            "PRECIOS":{"frente":"VENTAS","correo":"jsalvatierra@tailoy.com.pe"},
+            "PROMOCION":{"frente":"VENTAS","correo":"jsalvatierra@tailoy.com.pe"},
+            "CUENTA CONTABLE":{"frente":"FINANZAS","correo":"bpantoja@tailoy.com.pe"},
+            "LINEA DE CREDITO":{"frente":"FINANZAS","correo":"bpantoja@tailoy.com.pe"},
+          }
+          CAT_ACTOR={"PARTNER_FUNCTIONS_FALTANTES":"INTERLOCUTOR","DATOS_CLIENTE_INCOMPLETOS":"CLIENTE","CLIENTE_SIN_MAESTRO_VENTAS_KNVV":"CLIENTE","DEUDOR_INEXISTENTE":"DEUDOR","STOCK_INSUFICIENTE_ATP":"PRODUCTO","MATERIAL_BLOQUEADO":"PRODUCTO","CUENTA_MAYOR_INEXISTENTE":"CUENTA CONTABLE"}
+          def responsable(c):
+            a=CAT_ACTOR.get(c)
+            if a and a in RESPONSABLES: r=RESPONSABLES[a]; return {"actor":a,"frente":r["frente"],"correo":r["correo"]}
+            return {"actor":"SIN ASIGNAR","frente":"-","correo":"-"}
           def classify(m):
             m=(m or "").strip()
             for c,s,rx,eq in RULES:
@@ -197,7 +213,7 @@ Resources:
             dpc=defaultdict(lambda:defaultdict(int))
             for r in regs: dpc[r["cliente"]][r["categoria"]]+=1
             top=sorted(({"cliente":k,"total":sum(v.values()),"categorias":dict(v)} for k,v in dpc.items()),key=lambda x:x["total"],reverse=True)[:15]
-            cats=[{"categoria":c,"conteo":n,"severidad":sev.get(c,"WARNING"),"equipo":equ.get(c,"Revision manual"),"clientes_afectados":len(clis.get(c,set())),"solucion":runbook(c)} for c,n in sorted(por.items(),key=lambda x:x[1],reverse=True)]
+            cats=[{"categoria":c,"conteo":n,"severidad":sev.get(c,"WARNING"),"equipo":equ.get(c,"Revision manual"),"clientes_afectados":len(clis.get(c,set())),"solucion":runbook(c),"responsable":responsable(c)} for c,n in sorted(por.items(),key=lambda x:x[1],reverse=True)]
             return {"lote":{"bucket":bucket,"key":key,"procesado_utc":datetime.now(timezone.utc).isoformat(),"total_errores":len(regs),"clientes_afectados":len({r["cliente"] for r in regs})},"categorias":cats,"alerta_stock":{"categoria":STOCK,"conteo":por.get(STOCK,0),"documentos":stock[:50]},"top_clientes":top}
           def metrics(sm):
             md=[{"MetricName":"ErroresPorCategoria","Dimensions":[{"Name":"Categoria","Value":c["categoria"]},{"Name":"Severidad","Value":c["severidad"]}],"Value":c["conteo"],"Unit":"Count"} for c in sm["categorias"]]
@@ -246,7 +262,7 @@ Resources:
           COLOR={"CRITICA":"#c0392b","WARNING":"#e67e22","INFO":"#2980b9"}
           SYS="Eres un asistente de operaciones de datos maestros de Tai Loy que redacta alertas accionables para la integracion AS/400 -> SAP. Escribe en espanol, tono profesional y directo. NUNCA inventes ni recalcules cifras: usa EXCLUSIVAMENTE los numeros entregados."
           def prompt(sm):
-            lote=sm["lote"]; cats="; ".join(f"{c['categoria']}={c['conteo']} ({c['severidad']}, responsable {c.get('solucion',{}).get('area_responsable',c['equipo'])})" for c in sm["categorias"])
+            lote=sm["lote"]; cats="; ".join(f"{c['categoria']}={c['conteo']} ({c['severidad']}, responsable {c.get('responsable',{}).get('actor','-')}/{c.get('responsable',{}).get('frente','-')})" for c in sm["categorias"])
             return (f"Datos del lote (NO los modifiques):\n- Total errores: {lote['total_errores']}\n- Clientes afectados: {lote['clientes_afectados']}\n- Categorias: {cats}\n- Stock/ATP diferenciada: {sm.get('alerta_stock',{}).get('conteo',0)}\n\nRedacta en espanol, texto plano, dos secciones breves:\n1) RESUMEN EJECUTIVO: 2-4 frases.\n2) PROXIMA ACCION: una vineta por area responsable.\nNo inventes cifras ni procedimientos. No incluyas tablas. Maximo 180 palabras.")
           def narr_fallback(sm):
             cats=sm["categorias"]; crit=[c for c in cats if c["severidad"]=="CRITICA"]
@@ -276,7 +292,8 @@ Resources:
               sol=c.get("solucion")
               if not sol: continue
               col=COLOR.get(c["severidad"],"#555"); ps="".join(f"<li style='margin:2px 0'>{p}</li>" for p in sol.get("pasos",[]))
-              bl.append(f"<div style='border:1px solid #e1e4e8;border-radius:6px;padding:12px 14px;margin:10px 0'><div style='font-weight:600'>{c['categoria']} <span style='color:#fff;background:{col};padding:1px 7px;border-radius:3px;font-size:11px'>{c['severidad']}</span> <span style='color:#777;font-weight:400'>- {c['conteo']} casos</span></div><div style='font-size:12px;color:#555;margin:4px 0'><strong>Responsable:</strong> {sol.get('area_responsable','-')} | <strong>Sistemas:</strong> {sol.get('sistemas','-')}</div><ol style='font-size:13px;margin:6px 0 0 18px;padding:0'>{ps}</ol></div>")
+              rp=c.get("responsable",{}); rl=f"<strong>Responsable:</strong> {rp.get('actor','-')} ({rp.get('frente','-')}) - <a href='mailto:{rp.get('correo','')}'>{rp.get('correo','-')}</a>"
+              bl.append(f"<div style='border:1px solid #e1e4e8;border-radius:6px;padding:12px 14px;margin:10px 0'><div style='font-weight:600'>{c['categoria']} <span style='color:#fff;background:{col};padding:1px 7px;border-radius:3px;font-size:11px'>{c['severidad']}</span> <span style='color:#777;font-weight:400'>- {c['conteo']} casos</span></div><div style='font-size:12px;color:#555;margin:4px 0'>{rl}</div><div style='font-size:12px;color:#555;margin:4px 0'><strong>Area solucion:</strong> {sol.get('area_responsable','-')} | <strong>Sistemas:</strong> {sol.get('sistemas','-')}</div><ol style='font-size:13px;margin:6px 0 0 18px;padding:0'>{ps}</ol></div>")
             return "<h3>Procedimiento de solucion por causa raiz</h3><p style='margin:4px 0;color:#555;font-size:13px'>Pasos definidos por el analista. Las categorias pendientes aun no tienen procedimiento asignado.</p>"+"".join(bl)
           def rc(c):
             col=COLOR.get(c["severidad"],"#555")
@@ -298,7 +315,7 @@ Resources:
             for c in sm["categorias"]: L.append(f"  - {c['categoria']}: {c['conteo']} [{c['severidad']}] ({c['equipo']})")
             L+=["","Procedimiento de solucion por causa raiz:"]
             for c in sm["categorias"]:
-              sol=c.get("solucion",{}); L.append(f"  * {c['categoria']} -> responsable: {sol.get('area_responsable','-')}"); L.append(f"    sistemas: {sol.get('sistemas','-')}")
+              sol=c.get("solucion",{}); rp=c.get("responsable",{}); L.append(f"  * {c['categoria']}"); L.append(f"    responsable: {rp.get('actor','-')} ({rp.get('frente','-')}) - {rp.get('correo','-')}"); L.append(f"    area solucion: {sol.get('area_responsable','-')} | sistemas: {sol.get('sistemas','-')}")
               for i,p in enumerate(sol.get("pasos",[]),1): L.append(f"      {i}. {p}")
             L.append(""); L.append(f"Stock/ATP: {sm.get('alerta_stock',{}).get('conteo',0)} docs")
             return "\n".join(L)

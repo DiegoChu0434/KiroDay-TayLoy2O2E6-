@@ -39,10 +39,14 @@ def main():
     print(f"\nAlerta diferenciada STOCK/ATP: {summary['alerta_stock']['conteo']}")
     print(f"Top cliente: {summary['top_clientes'][0] if summary['top_clientes'] else 'n/a'}")
 
-    print("\nRunbook por categoria (responsable):")
+    print("\nRunbook y responsable por categoria:")
     for c in summary["categorias"]:
         sol = c.get("solucion", {})
-        print(f"  {c['categoria']:<32} -> {sol.get('area_responsable', '-')} ({len(sol.get('pasos', []))} pasos)")
+        resp = c.get("responsable", {})
+        print(
+            f"  {c['categoria']:<32} -> {resp.get('actor', '-')}/{resp.get('frente', '-')} "
+            f"<{resp.get('correo', '-')}> ({len(sol.get('pasos', []))} pasos)"
+        )
 
     # asserts basicos
     assert summary["lote"]["total_errores"] == 2474, "El total deberia ser 2474"
@@ -60,6 +64,16 @@ def main():
     por_cat = {c["categoria"]: c["solucion"]["area_responsable"] for c in summary["categorias"]}
     assert por_cat.get("PARTNER_FUNCTIONS_FALTANTES") == "Datos Maestros"
     assert por_cat.get("STOCK_INSUFICIENTE_ATP") == "Operaciones / Logística tienda"
+
+    # cada categoria debe traer su responsable (actor/frente/correo)
+    resp_por_cat = {c["categoria"]: c.get("responsable", {}) for c in summary["categorias"]}
+    assert resp_por_cat["PARTNER_FUNCTIONS_FALTANTES"]["correo"] == "datos_maestros@tailoy.com.pe"
+    assert resp_por_cat["DATOS_CLIENTE_INCOMPLETOS"]["correo"] == "jsalvatierra@tailoy.com.pe"
+    assert resp_por_cat["STOCK_INSUFICIENTE_ATP"]["actor"] == "PRODUCTO"
+    assert resp_por_cat["CUENTA_MAYOR_INEXISTENTE"]["correo"] == "bpantoja@tailoy.com.pe"
+    # ningun correo debe tener el typo 'tailohy'
+    for c in summary["categorias"]:
+        assert "tailohy" not in c.get("responsable", {}).get("correo", ""), "typo tailohy detectado"
     print("\nOK: todas las aserciones pasaron.")
 
 

@@ -209,6 +209,49 @@ Las líneas que no coinciden con ninguna de las 7 causas raíz quedan como `OTRO
 > se propagan en el campo `solucion` del resumen JSON del lote y se renderizan en la sección
 > "Procedimiento de solución por causa raíz" del correo.
 
+### 2.7 Responsables por actor/entidad y enrutamiento (negocio)
+
+El negocio definió los **actores** (entidades de integración) con su **frente** y **correo**
+de contacto. Cada categoría de error se asocia a un actor, de modo que el correo indica a
+**quién** le corresponde atender cada causa raíz.
+
+#### Cuadro de responsables (9 actores)
+
+| Actor | Frente | Correo |
+|-------|--------|--------|
+| CLIENTE | VENTAS | jsalvatierra@tailoy.com.pe |
+| PRODUCTO | LOGISTICA | eflower@tailoy.com.pe |
+| INTERLOCUTOR | DATOS | datos_maestros@tailoy.com.pe |
+| DEUDOR | DATOS | datos_maestros@tailoy.com.pe |
+| PROVEEDOR | LOGISTICA | eflower@tailoy.com.pe |
+| PRECIOS | VENTAS | jsalvatierra@tailoy.com.pe |
+| PROMOCION | VENTAS | jsalvatierra@tailoy.com.pe |
+| CUENTA CONTABLE | FINANZAS | bpantoja@tailoy.com.pe |
+| LINEA DE CREDITO | FINANZAS | bpantoja@tailoy.com.pe |
+
+#### Mapeo categoría de error → actor responsable
+
+| Categoría de error | Actor | Frente | Correo |
+|--------------------|-------|--------|--------|
+| PARTNER_FUNCTIONS_FALTANTES | INTERLOCUTOR | DATOS | datos_maestros@tailoy.com.pe |
+| DATOS_CLIENTE_INCOMPLETOS | CLIENTE | VENTAS | jsalvatierra@tailoy.com.pe |
+| CLIENTE_SIN_MAESTRO_VENTAS_KNVV | CLIENTE | VENTAS | jsalvatierra@tailoy.com.pe |
+| DEUDOR_INEXISTENTE | DEUDOR | DATOS | datos_maestros@tailoy.com.pe |
+| STOCK_INSUFICIENTE_ATP | PRODUCTO | LOGISTICA | eflower@tailoy.com.pe |
+| MATERIAL_BLOQUEADO | PRODUCTO | LOGISTICA | eflower@tailoy.com.pe |
+| CUENTA_MAYOR_INEXISTENTE | CUENTA CONTABLE | FINANZAS | bpantoja@tailoy.com.pe |
+
+> **Actores sin categoría de error (por ahora):** PROVEEDOR, PRECIOS, PROMOCION y LINEA DE
+> CREDITO no tienen aún una causa raíz asociada en el log actual. Quedan cargados en el
+> catálogo de responsables para cuando aparezcan esos errores.
+>
+> **Estado del envío:** por ahora el correo se envía consolidado a una bandeja (SES_RECIPIENT)
+> y muestra el responsable por categoría en el contenido. El enrutamiento de un correo
+> independiente a cada responsable (según su actor) es un paso futuro.
+
+Esto vive como catálogo determinista en el código (`RESPONSABLES` y `CATEGORIA_ACTOR` en el
+analizador) y se propaga en el campo `responsable` del resumen JSON de cada categoría.
+
 ---
 
 ## 3. Requerimientos

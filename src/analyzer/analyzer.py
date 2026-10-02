@@ -190,6 +190,45 @@ def runbook(categoria):
     )
 
 
+# ---------------------------------------------------------------------------
+# Catálogo de RESPONSABLES por actor/entidad (frente + correo de contacto).
+# Los 9 actores definidos por el negocio. PROVEEDOR / PRECIOS / PROMOCION /
+# LINEA DE CREDITO aún no tienen una categoría de error asociada en el log
+# actual; quedan cargados para cuando aparezcan esos errores.
+# ---------------------------------------------------------------------------
+RESPONSABLES = {
+    "CLIENTE":          {"frente": "VENTAS",    "correo": "jsalvatierra@tailoy.com.pe"},
+    "PRODUCTO":         {"frente": "LOGISTICA", "correo": "eflower@tailoy.com.pe"},
+    "INTERLOCUTOR":     {"frente": "DATOS",     "correo": "datos_maestros@tailoy.com.pe"},
+    "DEUDOR":           {"frente": "DATOS",     "correo": "datos_maestros@tailoy.com.pe"},
+    "PROVEEDOR":        {"frente": "LOGISTICA", "correo": "eflower@tailoy.com.pe"},
+    "PRECIOS":          {"frente": "VENTAS",    "correo": "jsalvatierra@tailoy.com.pe"},
+    "PROMOCION":        {"frente": "VENTAS",    "correo": "jsalvatierra@tailoy.com.pe"},
+    "CUENTA CONTABLE":  {"frente": "FINANZAS",  "correo": "bpantoja@tailoy.com.pe"},
+    "LINEA DE CREDITO": {"frente": "FINANZAS",  "correo": "bpantoja@tailoy.com.pe"},
+}
+
+# Mapeo de cada categoría de error al actor responsable (según el cuadro del negocio).
+CATEGORIA_ACTOR = {
+    "PARTNER_FUNCTIONS_FALTANTES":     "INTERLOCUTOR",
+    "DATOS_CLIENTE_INCOMPLETOS":       "CLIENTE",
+    "CLIENTE_SIN_MAESTRO_VENTAS_KNVV": "CLIENTE",
+    "DEUDOR_INEXISTENTE":              "DEUDOR",
+    "STOCK_INSUFICIENTE_ATP":          "PRODUCTO",
+    "MATERIAL_BLOQUEADO":              "PRODUCTO",
+    "CUENTA_MAYOR_INEXISTENTE":        "CUENTA CONTABLE",
+}
+
+
+def responsable(categoria):
+    """Devuelve {actor, frente, correo} para una categoría (o 'Sin asignar')."""
+    actor = CATEGORIA_ACTOR.get(categoria)
+    if actor and actor in RESPONSABLES:
+        r = RESPONSABLES[actor]
+        return {"actor": actor, "frente": r["frente"], "correo": r["correo"]}
+    return {"actor": "SIN ASIGNAR", "frente": "-", "correo": "-"}
+
+
 def classify(message: str):
     """Devuelve (codigo, severidad, equipo) para un mensaje de error."""
     msg = (message or "").strip()
@@ -295,6 +334,7 @@ def build_summary(registros, bucket, key):
                     "sistemas": rb["sistemas"],
                     "area_responsable": rb["area_responsable"],
                 },
+                "responsable": responsable(cat),
             }
         )
 
