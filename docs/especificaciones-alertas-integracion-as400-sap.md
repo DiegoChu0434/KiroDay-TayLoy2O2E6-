@@ -128,9 +128,9 @@ convierte la alerta en algo accionable (del "qué pasó" al "qué hacer"). Se in
 forma **determinista** en el correo: el código lo renderiza por categoría; la IA solo lo
 referencia, no lo inventa.
 
-> Nota: por ahora hay 4 runbooks (los que entregó el analista). Las categorías restantes
-> quedan con una acción genérica "pendiente de procedimiento" hasta que el analista pase
-> las soluciones faltantes. El área responsable de estas últimas es por **inferencia**.
+> Nota: el analista entregó los **7 procedimientos** (uno por causa raíz catalogada). Los
+> **agentes responsables** (personas concretas) se asignarán después; el área responsable
+> indicada aquí es por **inferencia** a partir del procedimiento.
 
 #### 1. PARTNER_FUNCTIONS_FALTANTES — 1.480 casos (60%) · CRÍTICA
 - **Por qué ocurre:** el cliente migrado no tiene definidos sus interlocutores en SAP (tabla KNVP). Casi siempre vienen juntos los 4 (pagador, solicitante, destinatario, receptor de factura) por el mismo cliente.
@@ -171,14 +171,39 @@ referencia, no lo inventa.
 - **Sistemas:** Tienda (crédito) / SAP (BP, rol deudor)
 - **Responsable (inferido):** Datos Maestros / Créditos
 
-#### Pendientes de procedimiento (acción genérica por ahora)
+#### 5. CLIENTE_SIN_MAESTRO_VENTAS_KNVV — 100 casos (4%) · WARNING
+- **Por qué ocurre:** el cliente existe a nivel general pero sin la vista de área de ventas (KNVV).
+- **Procedimiento:**
+  1. Se crea un BP en SAP con el ROL COMERCIAL.
+  2. Se hace un pedido a este cliente pero no deja grabar porque no tiene el área de ventas (KNVV).
+  3. Ingresar a SAP a la transacción BP y asignarle un ÁREA DE VENTAS.
+  4. Crear el pedido al área de ventas que se le asignó al BP.
+  5. Ya deja crear el pedido y la venta.
+- **Sistemas:** SAP (transacción BP, área de ventas KNVV)
+- **Responsable (inferido):** Datos Maestros
 
-| Categoría | Casos | Acción provisional | Responsable (inferido) |
-|-----------|------:|--------------------|------------------------|
-| CLIENTE_SIN_MAESTRO_VENTAS_KNVV | 100 | Escalar a Datos Maestros para completar la vista de área de ventas (KNVV). | Datos Maestros |
-| MATERIAL_BLOQUEADO | 22 | Transitorio: reintentar cuando el material deje de estar bloqueado. | Datos Maestros / Operaciones |
-| CUENTA_MAYOR_INEXISTENTE | 1 | Escalar a Contabilidad para crear/validar la cuenta de mayor. | Contabilidad |
-| OTRO | — | Revisión manual y definición de procedimiento. | Revisión manual |
+#### 6. MATERIAL_BLOQUEADO — 22 casos (1%) · INFO (transitorio)
+- **Por qué ocurre:** alguien tenía el material bloqueado en edición durante la carga (usuarios INTEGRATION / PVALENTIN). Transitorio.
+- **Procedimiento:**
+  1. Un movimiento en el almacén de las tiendas se pide contabilizar.
+  2. En ese momento, en SAP un colaborador está bloqueando ese producto porque está en una transacción de modificación del producto.
+  3. Ubicar al usuario que está bloqueando y pedirle que lo desbloquee (saliendo de la pantalla), o que indique cuánto tiempo necesita antes de reenviar el movimiento en la integración.
+  4. Volver a enviar el movimiento: pasa sin problemas.
+- **Sistemas:** Tienda (movimiento de almacén) / SAP (datos de centro del material)
+- **Responsable (inferido):** Datos Maestros / Operaciones
+
+#### 7. CUENTA_MAYOR_INEXISTENTE — 1 caso (<1%) · WARNING
+- **Por qué ocurre:** configuración contable. Una cuenta de mayor no está registrada en SAP o no está ampliada a la sociedad.
+- **Procedimiento:**
+  1. Se ejecuta un masivo de saldos contables hacia SAP.
+  2. SAP encuentra en la columna del Excel del masivo una cuenta contable no registrada en SAP, o no ampliada a la sociedad del masivo.
+  3. Corregir en el Excel la cuenta contable, o crearla en SAP, o ampliarla a la sociedad del masivo.
+  4. Ejecutar el masivo: todo conforme.
+- **Sistemas:** Excel (masivo de saldos) / SAP (plan de cuentas, sociedad)
+- **Responsable (inferido):** Contabilidad
+
+#### OTRO (sin categorizar)
+Las líneas que no coinciden con ninguna de las 7 causas raíz quedan como `OTRO` y requieren revisión manual y definición de procedimiento. Responsable: Revisión manual.
 
 > Los runbooks viven como catálogo determinista en el código (`RUNBOOKS` en el analizador),
 > se propagan en el campo `solucion` del resumen JSON del lote y se renderizan en la sección
@@ -199,7 +224,7 @@ referencia, no lo inventa.
 | RF-05 | Enviar **una notificación por email** por lote, bien estructurada, usando **SES + SNS**, consolidada en un solo correo a la bandeja personal del responsable. | Alta |
 | RF-06 | El correo debe incluir: resumen por categoría, conteo total, clientes afectados principales, la alerta diferenciada de stock, y el **procedimiento de solución por causa raíz** (pasos, sistemas, responsable). | Alta |
 | RF-07 | Definir umbrales de severidad (CRÍTICA / WARNING / INFO) por categoría y volumen. | Media |
-| RF-09 | Incluir por cada categoría su **runbook de solución** (pasos del analista, sistemas, área responsable), de forma determinista. Categorías sin procedimiento quedan como "pendiente". | Alta |
+| RF-09 | Incluir por cada categoría su **runbook de solución** (pasos del analista, sistemas, área responsable), de forma determinista. Las 7 causas raíz catalogadas tienen procedimiento; `OTRO` queda para revisión manual. | Alta |
 | RF-08 | Dejar la base para reproceso automatizado de errores transitorios (material bloqueado, stock repuesto). | Baja (fase futura) |
 
 ### 3.2 Requerimientos no funcionales

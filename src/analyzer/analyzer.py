@@ -143,20 +143,35 @@ RUNBOOKS = {
         "sistemas": "Tienda (crédito) / SAP (BP, rol deudor)",
         "area_responsable": "Datos Maestros / Créditos",
     },
-    # --- Pendientes de procedimiento del analista (acción genérica por ahora) ---
     "CLIENTE_SIN_MAESTRO_VENTAS_KNVV": {
-        "pasos": ["Pendiente de procedimiento del analista. Escalar a Datos Maestros para completar la vista de área de ventas (KNVV) del cliente."],
-        "sistemas": "SAP (maestro de ventas KNVV)",
+        "pasos": [
+            "Se crea un BP en SAP con el ROL COMERCIAL.",
+            "Se hace un pedido a este cliente pero no deja grabar el pedido porque no tiene el área de ventas (KNVV).",
+            "Ingresar a SAP a la transacción BP y asignarle un ÁREA DE VENTAS.",
+            "Crear el pedido al área de ventas que se le asignó al BP.",
+            "Ya deja crear el pedido y la venta.",
+        ],
+        "sistemas": "SAP (transacción BP, área de ventas KNVV)",
         "area_responsable": "Datos Maestros",
     },
     "MATERIAL_BLOQUEADO": {
-        "pasos": ["Pendiente de procedimiento del analista. Error transitorio: reintentar cuando el material deje de estar bloqueado por el usuario."],
-        "sistemas": "SAP (datos de centro del material)",
+        "pasos": [
+            "Un movimiento en el almacén de las tiendas se pide contabilizar.",
+            "En ese momento, en SAP un colaborador está bloqueando ese producto porque está en una transacción de modificación del producto.",
+            "Ubicar al usuario que está bloqueando y pedirle que lo desbloquee (saliendo de la pantalla) o que indique cuánto tiempo necesita antes de reenviar el movimiento en la integración.",
+            "Volver a enviar el movimiento: pasa sin problemas.",
+        ],
+        "sistemas": "Tienda (movimiento de almacén) / SAP (datos de centro del material)",
         "area_responsable": "Datos Maestros / Operaciones",
     },
     "CUENTA_MAYOR_INEXISTENTE": {
-        "pasos": ["Pendiente de procedimiento del analista. Escalar a Contabilidad para crear/validar la cuenta de mayor."],
-        "sistemas": "SAP (plan de cuentas)",
+        "pasos": [
+            "Se ejecuta un masivo de saldos contables hacia SAP.",
+            "SAP encuentra en la columna del Excel del masivo una cuenta contable no registrada en SAP, o no ampliada a la sociedad del masivo.",
+            "Corregir en el Excel la cuenta contable, o crearla en SAP, o ampliarla a la sociedad del masivo.",
+            "Ejecutar el masivo: todo conforme.",
+        ],
+        "sistemas": "Excel (masivo de saldos) / SAP (plan de cuentas, sociedad)",
         "area_responsable": "Contabilidad",
     },
     "OTRO": {
