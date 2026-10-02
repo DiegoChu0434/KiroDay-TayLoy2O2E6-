@@ -39,12 +39,27 @@ def main():
     print(f"\nAlerta diferenciada STOCK/ATP: {summary['alerta_stock']['conteo']}")
     print(f"Top cliente: {summary['top_clientes'][0] if summary['top_clientes'] else 'n/a'}")
 
+    print("\nRunbook por categoria (responsable):")
+    for c in summary["categorias"]:
+        sol = c.get("solucion", {})
+        print(f"  {c['categoria']:<32} -> {sol.get('area_responsable', '-')} ({len(sol.get('pasos', []))} pasos)")
+
     # asserts basicos
     assert summary["lote"]["total_errores"] == 2474, "El total deberia ser 2474"
     cats = {c["categoria"]: c["conteo"] for c in summary["categorias"]}
     assert cats.get("PARTNER_FUNCTIONS_FALTANTES", 0) == 1480
     assert cats.get("DATOS_CLIENTE_INCOMPLETOS", 0) == 404
     assert summary["alerta_stock"]["conteo"] == 337
+
+    # cada categoria debe traer su runbook de solucion
+    for c in summary["categorias"]:
+        assert "solucion" in c, f"Falta runbook en {c['categoria']}"
+        assert c["solucion"]["area_responsable"], f"Sin responsable en {c['categoria']}"
+        assert c["solucion"]["pasos"], f"Sin pasos en {c['categoria']}"
+    # los 4 runbooks del analista con su responsable esperado
+    por_cat = {c["categoria"]: c["solucion"]["area_responsable"] for c in summary["categorias"]}
+    assert por_cat.get("PARTNER_FUNCTIONS_FALTANTES") == "Datos Maestros"
+    assert por_cat.get("STOCK_INSUFICIENTE_ATP") == "Operaciones / Logística tienda"
     print("\nOK: todas las aserciones pasaron.")
 
 

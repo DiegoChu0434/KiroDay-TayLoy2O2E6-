@@ -156,6 +156,18 @@ Resources:
             ("CUENTA_MAYOR_INEXISTENTE","WARNING",re.compile(r"cta\.?\s*mayor .* no existe",re.I),"Contabilidad"),
           ]
           STOCK = "STOCK_INSUFICIENTE_ATP"
+          # Runbooks de solucion por causa raiz (determinista; definido por el analista)
+          RUNBOOKS={
+            "PARTNER_FUNCTIONS_FALTANTES":{"pasos":["Se crea una venta para el canal e-commerce (RAPPI / PedidosYa) atendida en tienda.","Al subir a SAP, el cliente (BP) no tiene asignada el area de ventas del canal e-commerce.","Ampliar en SAP a este cliente al canal E-COMMERCE (u otro no ampliado).","Volver a pasar la venta: se contabiliza."],"sistemas":"AS400 / e-commerce (RAPPI, PedidosYa) / SAP (BP, area de ventas)","area_responsable":"Datos Maestros"},
+            "DATOS_CLIENTE_INCOMPLETOS":{"pasos":["Al crear un cliente en SAP debe tener el VENDEDOR asignado.","Modificar el cliente en SAP y asignar un vendedor.","Volver a enviar el cliente."],"sistemas":"SAP (maestro de cliente)","area_responsable":"Datos Maestros / Comercial"},
+            "STOCK_INSUFICIENTE_ATP":{"pasos":["Venta facturada de una tienda; el cliente ya se llevo el producto (habia stock en tienda).","Al contabilizar en SAP no hay stock: la tienda recibio la mercaderia pero no aplico el ingreso a su almacen.","Ingresar la mercaderia en la tienda y enviar ese movimiento de ingreso a SAP.","Ingresado y contabilizado en SAP, se puede contabilizar la venta pendiente."],"sistemas":"Tienda (ingreso de mercaderia) / SAP (stock, ATP)","area_responsable":"Operaciones / Logistica tienda"},
+            "DEUDOR_INEXISTENTE":{"pasos":["Al asignar linea de credito en tienda, el cliente se convierte en deudor.","Una venta al credito (sistema NO SAP) no contabiliza porque el BP no tiene ampliado el ROL DEUDOR.","Ingresar a SAP el BP y asignar el ROL DEUDOR.","Enviar la venta al credito: pasa a contabilizarse."],"sistemas":"Tienda (credito) / SAP (BP, rol deudor)","area_responsable":"Datos Maestros / Creditos"},
+            "CLIENTE_SIN_MAESTRO_VENTAS_KNVV":{"pasos":["Pendiente de procedimiento del analista. Escalar a Datos Maestros para completar la vista de area de ventas (KNVV) del cliente."],"sistemas":"SAP (maestro de ventas KNVV)","area_responsable":"Datos Maestros"},
+            "MATERIAL_BLOQUEADO":{"pasos":["Pendiente de procedimiento del analista. Transitorio: reintentar cuando el material deje de estar bloqueado por el usuario."],"sistemas":"SAP (datos de centro del material)","area_responsable":"Datos Maestros / Operaciones"},
+            "CUENTA_MAYOR_INEXISTENTE":{"pasos":["Pendiente de procedimiento del analista. Escalar a Contabilidad para crear/validar la cuenta de mayor."],"sistemas":"SAP (plan de cuentas)","area_responsable":"Contabilidad"},
+            "OTRO":{"pasos":["Sin categorizar. Requiere revision manual y definicion de procedimiento."],"sistemas":"Por determinar","area_responsable":"Revision manual"},
+          }
+          def runbook(c): return RUNBOOKS.get(c,{"pasos":["Sin procedimiento definido."],"sistemas":"Por determinar","area_responsable":"Revision manual"})
           def classify(m):
             m=(m or "").strip()
             for c,s,rx,eq in RULES:
@@ -185,7 +197,7 @@ Resources:
             dpc=defaultdict(lambda:defaultdict(int))
             for r in regs: dpc[r["cliente"]][r["categoria"]]+=1
             top=sorted(({"cliente":k,"total":sum(v.values()),"categorias":dict(v)} for k,v in dpc.items()),key=lambda x:x["total"],reverse=True)[:15]
-            cats=[{"categoria":c,"conteo":n,"severidad":sev.get(c,"WARNING"),"equipo":equ.get(c,"Revision manual"),"clientes_afectados":len(clis.get(c,set()))} for c,n in sorted(por.items(),key=lambda x:x[1],reverse=True)]
+            cats=[{"categoria":c,"conteo":n,"severidad":sev.get(c,"WARNING"),"equipo":equ.get(c,"Revision manual"),"clientes_afectados":len(clis.get(c,set())),"solucion":runbook(c)} for c,n in sorted(por.items(),key=lambda x:x[1],reverse=True)]
             return {"lote":{"bucket":bucket,"key":key,"procesado_utc":datetime.now(timezone.utc).isoformat(),"total_errores":len(regs),"clientes_afectados":len({r["cliente"] for r in regs})},"categorias":cats,"alerta_stock":{"categoria":STOCK,"conteo":por.get(STOCK,0),"documentos":stock[:50]},"top_clientes":top}
           def metrics(sm):
             md=[{"MetricName":"ErroresPorCategoria","Dimensions":[{"Name":"Categoria","Value":c["categoria"]},{"Name":"Severidad","Value":c["severidad"]}],"Value":c["conteo"],"Unit":"Count"} for c in sm["categorias"]]
@@ -234,8 +246,8 @@ Resources:
           COLOR={"CRITICA":"#c0392b","WARNING":"#e67e22","INFO":"#2980b9"}
           SYS="Eres un asistente de operaciones de datos maestros de Tai Loy que redacta alertas accionables para la integracion AS/400 -> SAP. Escribe en espanol, tono profesional y directo. NUNCA inventes ni recalcules cifras: usa EXCLUSIVAMENTE los numeros entregados."
           def prompt(sm):
-            lote=sm["lote"]; cats="; ".join(f"{c['categoria']}={c['conteo']} ({c['severidad']}, equipo {c['equipo']})" for c in sm["categorias"])
-            return (f"Datos del lote (NO los modifiques):\n- Total errores: {lote['total_errores']}\n- Clientes afectados: {lote['clientes_afectados']}\n- Categorias: {cats}\n- Stock/ATP diferenciada: {sm.get('alerta_stock',{}).get('conteo',0)}\n\nRedacta en espanol, texto plano, dos secciones breves:\n1) RESUMEN EJECUTIVO: 2-4 frases.\n2) PROXIMA ACCION: una vineta por equipo responsable.\nNo inventes cifras. No incluyas tablas. Maximo 180 palabras.")
+            lote=sm["lote"]; cats="; ".join(f"{c['categoria']}={c['conteo']} ({c['severidad']}, responsable {c.get('solucion',{}).get('area_responsable',c['equipo'])})" for c in sm["categorias"])
+            return (f"Datos del lote (NO los modifiques):\n- Total errores: {lote['total_errores']}\n- Clientes afectados: {lote['clientes_afectados']}\n- Categorias: {cats}\n- Stock/ATP diferenciada: {sm.get('alerta_stock',{}).get('conteo',0)}\n\nRedacta en espanol, texto plano, dos secciones breves:\n1) RESUMEN EJECUTIVO: 2-4 frases.\n2) PROXIMA ACCION: una vineta por area responsable.\nNo inventes cifras ni procedimientos. No incluyas tablas. Maximo 180 palabras.")
           def narr_fallback(sm):
             cats=sm["categorias"]; crit=[c for c in cats if c["severidad"]=="CRITICA"]
             L=[f"RESUMEN EJECUTIVO: El lote presenta {sm['lote']['total_errores']} errores que afectan a {sm['lote']['clientes_afectados']} clientes."]
@@ -258,6 +270,14 @@ Resources:
           def narr_html(t,o):
             et="redactado por IA (Bedrock / Claude Sonnet 5.5)" if o=="IA" else "generado por plantilla de respaldo"
             return f"<div style='background:#eef5fb;border-left:4px solid #2980b9;padding:12px 14px;margin:12px 0;border-radius:4px'><div style='font-size:14px;line-height:1.5'>{t.replace(chr(10),'<br>')}</div><div style='color:#999;font-size:11px;margin-top:8px'>{et}</div></div>"
+          def runbooks_html(sm):
+            bl=[]
+            for c in sm["categorias"]:
+              sol=c.get("solucion")
+              if not sol: continue
+              col=COLOR.get(c["severidad"],"#555"); ps="".join(f"<li style='margin:2px 0'>{p}</li>" for p in sol.get("pasos",[]))
+              bl.append(f"<div style='border:1px solid #e1e4e8;border-radius:6px;padding:12px 14px;margin:10px 0'><div style='font-weight:600'>{c['categoria']} <span style='color:#fff;background:{col};padding:1px 7px;border-radius:3px;font-size:11px'>{c['severidad']}</span> <span style='color:#777;font-weight:400'>- {c['conteo']} casos</span></div><div style='font-size:12px;color:#555;margin:4px 0'><strong>Responsable:</strong> {sol.get('area_responsable','-')} | <strong>Sistemas:</strong> {sol.get('sistemas','-')}</div><ol style='font-size:13px;margin:6px 0 0 18px;padding:0'>{ps}</ol></div>")
+            return "<h3>Procedimiento de solucion por causa raiz</h3><p style='margin:4px 0;color:#555;font-size:13px'>Pasos definidos por el analista. Las categorias pendientes aun no tienen procedimiento asignado.</p>"+"".join(bl)
           def rc(c):
             col=COLOR.get(c["severidad"],"#555")
             return f"<tr><td style='padding:6px 10px;border-bottom:1px solid #eee'>{c['categoria']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right'>{c['conteo']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee'><span style='color:#fff;background:{col};padding:2px 8px;border-radius:3px;font-size:12px'>{c['severidad']}</span></td><td style='padding:6px 10px;border-bottom:1px solid #eee'>{c['equipo']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right'>{c['clientes_afectados']}</td></tr>"
@@ -270,12 +290,16 @@ Resources:
             st=sm.get("alerta_stock",{}); sc=st.get("conteo",0); sd=st.get("documentos",[])
             si="".join(f"<li><code>{d['documento']}</code> - {d['mensaje']}</li>" for d in sd[:20])
             ss=f"<h3 style='color:#2980b9'>Alerta diferenciada - Stock/ATP ({sc})</h3><p style='color:#555'>Errores de disponibilidad (no son fallas de migracion). Mostrando primeros {min(20,len(sd))} de {sc}.</p><ul style='font-size:13px'>{si or '<li>Sin casos.</li>'}</ul>"
-            return f"<html><body style='font-family:Segoe UI,Arial,sans-serif;color:#222;max-width:800px'><h2>Alerta de errores - Integracion AS/400 -> SAP</h2><p style='color:#777'>Lote: {lote['procesado_utc']}</p><div style='background:#f8f9fa;border:1px solid #e1e4e8;border-radius:6px;padding:14px;margin:12px 0'><strong>Total errores:</strong> {lote['total_errores']} | <strong>Clientes afectados:</strong> {lote['clientes_afectados']}<br><strong>Archivo:</strong> <code>{lote['key']}</code></div>{nb}<h3>Resumen por categoria</h3><table style='border-collapse:collapse;width:100%;font-size:14px'><thead><tr style='background:#2c3e50;color:#fff'><th style='padding:8px 10px;text-align:left'>Categoria</th><th style='padding:8px 10px;text-align:right'>Conteo</th><th style='padding:8px 10px;text-align:left'>Severidad</th><th style='padding:8px 10px;text-align:left'>Equipo</th><th style='padding:8px 10px;text-align:right'>Clientes</th></tr></thead><tbody>{cr}</tbody></table>{ss}<h3>Top clientes afectados</h3><table style='border-collapse:collapse;width:100%;font-size:14px'><thead><tr style='background:#2c3e50;color:#fff'><th style='padding:8px 10px;text-align:left'>Cliente</th><th style='padding:8px 10px;text-align:right'>Docs</th><th style='padding:8px 10px;text-align:left'>Categorias</th></tr></thead><tbody>{clr}</tbody></table><p style='margin-top:16px'><a href='{url}' style='color:#2980b9'>Ver archivo en S3</a></p><hr style='border:none;border-top:1px solid #eee'><p style='color:#999;font-size:12px'>Generado automaticamente por el sistema de alertas AS/400 -> SAP.</p></body></html>"
+            return f"<html><body style='font-family:Segoe UI,Arial,sans-serif;color:#222;max-width:800px'><h2>Alerta de errores - Integracion AS/400 -> SAP</h2><p style='color:#777'>Lote: {lote['procesado_utc']}</p><div style='background:#f8f9fa;border:1px solid #e1e4e8;border-radius:6px;padding:14px;margin:12px 0'><strong>Total errores:</strong> {lote['total_errores']} | <strong>Clientes afectados:</strong> {lote['clientes_afectados']}<br><strong>Archivo:</strong> <code>{lote['key']}</code></div>{nb}<h3>Resumen por categoria</h3><table style='border-collapse:collapse;width:100%;font-size:14px'><thead><tr style='background:#2c3e50;color:#fff'><th style='padding:8px 10px;text-align:left'>Categoria</th><th style='padding:8px 10px;text-align:right'>Conteo</th><th style='padding:8px 10px;text-align:left'>Severidad</th><th style='padding:8px 10px;text-align:left'>Equipo</th><th style='padding:8px 10px;text-align:right'>Clientes</th></tr></thead><tbody>{cr}</tbody></table>{runbooks_html(sm)}{ss}<h3>Top clientes afectados</h3><table style='border-collapse:collapse;width:100%;font-size:14px'><thead><tr style='background:#2c3e50;color:#fff'><th style='padding:8px 10px;text-align:left'>Cliente</th><th style='padding:8px 10px;text-align:right'>Docs</th><th style='padding:8px 10px;text-align:left'>Categorias</th></tr></thead><tbody>{clr}</tbody></table><p style='margin-top:16px'><a href='{url}' style='color:#2980b9'>Ver archivo en S3</a></p><hr style='border:none;border-top:1px solid #eee'><p style='color:#999;font-size:12px'>Generado automaticamente por el sistema de alertas AS/400 -> SAP.</p></body></html>"
           def text(sm,n):
             lote=sm["lote"]; L=["Alerta errores AS/400 -> SAP",f"Lote: {lote['procesado_utc']}",f"Total: {lote['total_errores']} | Clientes: {lote['clientes_afectados']}",f"Archivo: {lote['key']}"]
             if n: L+=["",n]
             L+=["","Por categoria:"]
             for c in sm["categorias"]: L.append(f"  - {c['categoria']}: {c['conteo']} [{c['severidad']}] ({c['equipo']})")
+            L+=["","Procedimiento de solucion por causa raiz:"]
+            for c in sm["categorias"]:
+              sol=c.get("solucion",{}); L.append(f"  * {c['categoria']} -> responsable: {sol.get('area_responsable','-')}"); L.append(f"    sistemas: {sol.get('sistemas','-')}")
+              for i,p in enumerate(sol.get("pasos",[]),1): L.append(f"      {i}. {p}")
             L.append(""); L.append(f"Stock/ATP: {sm.get('alerta_stock',{}).get('conteo',0)} docs")
             return "\n".join(L)
           def handler(event,context):

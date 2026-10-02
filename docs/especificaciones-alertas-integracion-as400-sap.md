@@ -120,6 +120,70 @@ Totales del lote analizado (2.474 registros):
 4. **Cero reproceso hoy** → oportunidad clara de automatización.
 5. Prefijos de documento (H0TR1): `2-0T` (1.669), `1-TI` (303), `1-3T` (227), `1-FA` (195), etc. — distintos tipos de transacción de venta.
 
+### 2.6 Runbooks de solución por causa raíz (negocio)
+
+El analista especialista definió el **procedimiento de solución** para cada causa raíz:
+los pasos concretos, los sistemas que intervienen y el área responsable. Esto es lo que
+convierte la alerta en algo accionable (del "qué pasó" al "qué hacer"). Se integra de
+forma **determinista** en el correo: el código lo renderiza por categoría; la IA solo lo
+referencia, no lo inventa.
+
+> Nota: por ahora hay 4 runbooks (los que entregó el analista). Las categorías restantes
+> quedan con una acción genérica "pendiente de procedimiento" hasta que el analista pase
+> las soluciones faltantes. El área responsable de estas últimas es por **inferencia**.
+
+#### 1. PARTNER_FUNCTIONS_FALTANTES — 1.480 casos (60%) · CRÍTICA
+- **Por qué ocurre:** el cliente migrado no tiene definidos sus interlocutores en SAP (tabla KNVP). Casi siempre vienen juntos los 4 (pagador, solicitante, destinatario, receptor de factura) por el mismo cliente.
+- **Procedimiento:**
+  1. Se crea una venta para el canal e-commerce (RAPPI / PedidosYa) que se atiende en la tienda.
+  2. Al subir la venta a SAP para contabilizar, el cliente (BP) no tiene asignada el área de ventas del canal e-commerce.
+  3. Ampliar en SAP a este cliente al canal E-COMMERCE (u otro canal no ampliado).
+  4. Volver a pasar la venta: se llega a contabilizar.
+- **Sistemas:** AS400 / e-commerce (RAPPI, PedidosYa) / SAP (BP, área de ventas)
+- **Responsable (inferido):** Datos Maestros
+
+#### 2. DATOS_CLIENTE_INCOMPLETOS — 404 casos (16%) · CRÍTICA
+- **Por qué ocurre:** campo obligatorio del cliente llega vacío desde AS400. Los placeholders `&5&6&7&8` son de SAP sin resolver → el mapeo origen no envió el valor.
+- **Procedimiento:**
+  1. Al crear un cliente en SAP debe tener el VENDEDOR asignado.
+  2. Modificar el cliente en SAP y asignar un vendedor.
+  3. Volver a enviar el cliente.
+- **Sistemas:** SAP (maestro de cliente)
+- **Responsable (inferido):** Datos Maestros / Comercial
+
+#### 3. STOCK_INSUFICIENTE_ATP — 337 casos (14%) · INFO (alerta diferenciada)
+- **Por qué ocurre:** no es error de cliente. El pedido no tiene disponibilidad en SAP aunque físicamente sí hubo stock en tienda. Ruido operativo, no de migración.
+- **Procedimiento:**
+  1. Se envía una venta facturada de una tienda; físicamente el cliente ya se llevó el producto (había stock en tienda).
+  2. Al contabilizar en SAP no hay stock: la tienda recibió la mercadería pero no aplicó el ingreso a su almacén.
+  3. Ingresar la mercadería en la tienda y enviar ese movimiento de ingreso a SAP.
+  4. Una vez ingresado y contabilizado en SAP, se puede contabilizar la venta pendiente.
+- **Sistemas:** Tienda (ingreso de mercadería) / SAP (stock, ATP)
+- **Responsable (inferido):** Operaciones / Logística tienda
+
+#### 4. DEUDOR_INEXISTENTE — 130 casos (5%) · WARNING
+- **Por qué ocurre:** el cliente (deudor) aún no está creado en SAP con el rol correspondiente.
+- **Procedimiento:**
+  1. Al asignar una línea de crédito en tienda, el cliente se convierte en deudor.
+  2. Una venta al crédito (sistema NO SAP) no contabiliza porque el BP no tiene ampliado el ROL DEUDOR.
+  3. Ingresar a SAP el BP y asignar el ROL DEUDOR.
+  4. Enviar la venta al crédito: pasa a contabilizarse.
+- **Sistemas:** Tienda (crédito) / SAP (BP, rol deudor)
+- **Responsable (inferido):** Datos Maestros / Créditos
+
+#### Pendientes de procedimiento (acción genérica por ahora)
+
+| Categoría | Casos | Acción provisional | Responsable (inferido) |
+|-----------|------:|--------------------|------------------------|
+| CLIENTE_SIN_MAESTRO_VENTAS_KNVV | 100 | Escalar a Datos Maestros para completar la vista de área de ventas (KNVV). | Datos Maestros |
+| MATERIAL_BLOQUEADO | 22 | Transitorio: reintentar cuando el material deje de estar bloqueado. | Datos Maestros / Operaciones |
+| CUENTA_MAYOR_INEXISTENTE | 1 | Escalar a Contabilidad para crear/validar la cuenta de mayor. | Contabilidad |
+| OTRO | — | Revisión manual y definición de procedimiento. | Revisión manual |
+
+> Los runbooks viven como catálogo determinista en el código (`RUNBOOKS` en el analizador),
+> se propagan en el campo `solucion` del resumen JSON del lote y se renderizan en la sección
+> "Procedimiento de solución por causa raíz" del correo.
+
 ---
 
 ## 3. Requerimientos
@@ -133,8 +197,9 @@ Totales del lote analizado (2.474 registros):
 | RF-03 | Agrupar los errores por cliente afectado y por categoría, no por línea individual. | Alta |
 | RF-04 | Diferenciar el error de **STOCK_INSUFICIENTE_ATP** como alerta separada, manteniéndolo dentro del flujo general de errores. | Alta |
 | RF-05 | Enviar **una notificación por email** por lote, bien estructurada, usando **SES + SNS**, consolidada en un solo correo a la bandeja personal del responsable. | Alta |
-| RF-06 | El correo debe incluir: resumen por categoría, conteo total, clientes afectados principales, y la alerta diferenciada de stock. | Alta |
+| RF-06 | El correo debe incluir: resumen por categoría, conteo total, clientes afectados principales, la alerta diferenciada de stock, y el **procedimiento de solución por causa raíz** (pasos, sistemas, responsable). | Alta |
 | RF-07 | Definir umbrales de severidad (CRÍTICA / WARNING / INFO) por categoría y volumen. | Media |
+| RF-09 | Incluir por cada categoría su **runbook de solución** (pasos del analista, sistemas, área responsable), de forma determinista. Categorías sin procedimiento quedan como "pendiente". | Alta |
 | RF-08 | Dejar la base para reproceso automatizado de errores transitorios (material bloqueado, stock repuesto). | Baja (fase futura) |
 
 ### 3.2 Requerimientos no funcionales

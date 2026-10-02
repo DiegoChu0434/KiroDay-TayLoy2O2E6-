@@ -97,6 +97,83 @@ ERROR_RULES = [
 
 STOCK_CATEGORY = "STOCK_INSUFICIENTE_ATP"
 
+# ---------------------------------------------------------------------------
+# Catálogo de RUNBOOKS de solución por causa raíz (definido por el analista).
+# Es determinista: la IA puede referenciarlo pero NO lo inventa.
+# Cada entrada: pasos (procedimiento), sistemas involucrados, área responsable.
+# Las categorías sin procedimiento del analista quedan como "pendiente".
+# ---------------------------------------------------------------------------
+RUNBOOKS = {
+    "PARTNER_FUNCTIONS_FALTANTES": {
+        "pasos": [
+            "Se crea una venta para el canal e-commerce (RAPPI / PedidosYa) que se atiende en la tienda.",
+            "Al subir la venta a SAP para contabilizar, el cliente (BP) no tiene asignada el área de ventas del canal e-commerce.",
+            "Ampliar en SAP a este cliente al canal E-COMMERCE (u otro canal no ampliado).",
+            "Volver a pasar la venta: se llega a contabilizar.",
+        ],
+        "sistemas": "AS400 / e-commerce (RAPPI, PedidosYa) / SAP (BP, área de ventas)",
+        "area_responsable": "Datos Maestros",
+    },
+    "DATOS_CLIENTE_INCOMPLETOS": {
+        "pasos": [
+            "Al crear un cliente en SAP debe tener el VENDEDOR asignado.",
+            "Modificar el cliente en SAP y asignar un vendedor.",
+            "Volver a enviar el cliente.",
+        ],
+        "sistemas": "SAP (maestro de cliente)",
+        "area_responsable": "Datos Maestros / Comercial",
+    },
+    "STOCK_INSUFICIENTE_ATP": {
+        "pasos": [
+            "Se envía una venta facturada de una tienda; físicamente el cliente ya se llevó el producto (había stock en tienda).",
+            "Al contabilizar en SAP no hay stock: la tienda recibió la mercadería pero no aplicó el ingreso a su almacén.",
+            "Ingresar la mercadería en la tienda y enviar ese movimiento de ingreso a SAP.",
+            "Una vez ingresado y contabilizado en SAP, se puede contabilizar la venta pendiente.",
+        ],
+        "sistemas": "Tienda (ingreso de mercadería) / SAP (stock, ATP)",
+        "area_responsable": "Operaciones / Logística tienda",
+    },
+    "DEUDOR_INEXISTENTE": {
+        "pasos": [
+            "Al asignar una línea de crédito en tienda, el cliente se convierte en deudor.",
+            "Una venta al crédito (sistema NO SAP) no contabiliza porque el BP no tiene ampliado el ROL DEUDOR.",
+            "Ingresar a SAP el BP y asignar el ROL DEUDOR.",
+            "Enviar la venta al crédito: pasa a contabilizarse.",
+        ],
+        "sistemas": "Tienda (crédito) / SAP (BP, rol deudor)",
+        "area_responsable": "Datos Maestros / Créditos",
+    },
+    # --- Pendientes de procedimiento del analista (acción genérica por ahora) ---
+    "CLIENTE_SIN_MAESTRO_VENTAS_KNVV": {
+        "pasos": ["Pendiente de procedimiento del analista. Escalar a Datos Maestros para completar la vista de área de ventas (KNVV) del cliente."],
+        "sistemas": "SAP (maestro de ventas KNVV)",
+        "area_responsable": "Datos Maestros",
+    },
+    "MATERIAL_BLOQUEADO": {
+        "pasos": ["Pendiente de procedimiento del analista. Error transitorio: reintentar cuando el material deje de estar bloqueado por el usuario."],
+        "sistemas": "SAP (datos de centro del material)",
+        "area_responsable": "Datos Maestros / Operaciones",
+    },
+    "CUENTA_MAYOR_INEXISTENTE": {
+        "pasos": ["Pendiente de procedimiento del analista. Escalar a Contabilidad para crear/validar la cuenta de mayor."],
+        "sistemas": "SAP (plan de cuentas)",
+        "area_responsable": "Contabilidad",
+    },
+    "OTRO": {
+        "pasos": ["Sin categorizar. Requiere revisión manual y definición de procedimiento."],
+        "sistemas": "Por determinar",
+        "area_responsable": "Revisión manual",
+    },
+}
+
+
+def runbook(categoria):
+    """Devuelve el runbook de solución para una categoría (o uno vacío por defecto)."""
+    return RUNBOOKS.get(
+        categoria,
+        {"pasos": ["Sin procedimiento definido."], "sistemas": "Por determinar", "area_responsable": "Revisión manual"},
+    )
+
 
 def classify(message: str):
     """Devuelve (codigo, severidad, equipo) para un mensaje de error."""
@@ -190,6 +267,7 @@ def build_summary(registros, bucket, key):
 
     categorias = []
     for cat, count in sorted(por_categoria.items(), key=lambda x: x[1], reverse=True):
+        rb = runbook(cat)
         categorias.append(
             {
                 "categoria": cat,
@@ -197,6 +275,11 @@ def build_summary(registros, bucket, key):
                 "severidad": severidad_por_categoria.get(cat, "WARNING"),
                 "equipo": equipo_por_categoria.get(cat, "Revision manual"),
                 "clientes_afectados": len(clientes_por_categoria.get(cat, set())),
+                "solucion": {
+                    "pasos": rb["pasos"],
+                    "sistemas": rb["sistemas"],
+                    "area_responsable": rb["area_responsable"],
+                },
             }
         )
 

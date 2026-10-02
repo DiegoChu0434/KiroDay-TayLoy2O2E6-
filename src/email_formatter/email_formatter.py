@@ -76,10 +76,11 @@ SYSTEM_PROMPT = (
 # NARRATIVA IA (Bedrock) con fallback determinista
 # ---------------------------------------------------------------------------
 def _build_prompt(summary):
-    """Construye el prompt de usuario con las cifras ya calculadas."""
+    """Construye el prompt de usuario con las cifras y runbooks ya calculados."""
     lote = summary["lote"]
     cats = "; ".join(
-        f"{c['categoria']}={c['conteo']} ({c['severidad']}, equipo {c['equipo']})"
+        f"{c['categoria']}={c['conteo']} ({c['severidad']}, responsable "
+        f"{c.get('solucion', {}).get('area_responsable', c['equipo'])})"
         for c in summary["categorias"]
     )
     return (
@@ -90,8 +91,8 @@ def _build_prompt(summary):
         f"- Stock/ATP (alerta diferenciada): {summary.get('alerta_stock', {}).get('conteo', 0)}\n\n"
         "Redacta en español, en texto plano, dos secciones breves:\n"
         "1) RESUMEN EJECUTIVO: 2-4 frases sobre la salud del lote y lo más urgente.\n"
-        "2) PRÓXIMA ACCIÓN: una viñeta por equipo responsable con la acción concreta.\n"
-        "No inventes cifras. No incluyas tablas. Máximo 180 palabras."
+        "2) PRÓXIMA ACCIÓN: una viñeta por área responsable con la acción concreta.\n"
+        "No inventes cifras ni procedimientos. No incluyas tablas. Máximo 180 palabras."
     )
 
 
@@ -193,6 +194,34 @@ def _row_cliente(c):
     )
 
 
+def _runbooks_html(summary):
+    """Sección determinista con el procedimiento de solución por causa raíz."""
+    bloques = []
+    for c in summary["categorias"]:
+        sol = c.get("solucion")
+        if not sol:
+            continue
+        color = SEVERIDAD_COLOR.get(c["severidad"], "#555")
+        pasos = "".join(f"<li style='margin:2px 0'>{p}</li>" for p in sol.get("pasos", []))
+        bloques.append(
+            "<div style='border:1px solid #e1e4e8;border-radius:6px;padding:12px 14px;margin:10px 0'>"
+            f"<div style='font-weight:600'>{c['categoria']} "
+            f"<span style='color:#fff;background:{color};padding:1px 7px;border-radius:3px;font-size:11px'>{c['severidad']}</span> "
+            f"<span style='color:#777;font-weight:400'>· {c['conteo']} casos</span></div>"
+            f"<div style='font-size:12px;color:#555;margin:4px 0'>"
+            f"<strong>Responsable:</strong> {sol.get('area_responsable', '-')} &nbsp;|&nbsp; "
+            f"<strong>Sistemas:</strong> {sol.get('sistemas', '-')}</div>"
+            f"<ol style='font-size:13px;margin:6px 0 0 18px;padding:0'>{pasos}</ol>"
+            "</div>"
+        )
+    return (
+        "<h3>Procedimiento de solución por causa raíz</h3>"
+        "<p style='margin:4px 0;color:#555;font-size:13px'>Pasos definidos por el analista. "
+        "Las categorías marcadas como pendientes aún no tienen procedimiento asignado.</p>"
+        + "".join(bloques)
+    )
+
+
 def build_html(summary, narrativa_bloque=""):
     lote = summary["lote"]
     s3_url = f"https://{lote['bucket']}.s3.amazonaws.com/{lote['key']}"
@@ -238,6 +267,8 @@ def build_html(summary, narrativa_bloque=""):
         <tbody>{cat_rows}</tbody>
       </table>
 
+      {_runbooks_html(summary)}
+
       {stock_section}
 
       <h3>Top clientes afectados</h3>
@@ -274,6 +305,13 @@ def build_text(summary, narrativa=""):
             f"  - {c['categoria']}: {c['conteo']} [{c['severidad']}] "
             f"({c['equipo']}, {c['clientes_afectados']} clientes)"
         )
+    lines += ["", "Procedimiento de solucion por causa raiz:"]
+    for c in summary["categorias"]:
+        sol = c.get("solucion", {})
+        lines.append(f"  * {c['categoria']} -> responsable: {sol.get('area_responsable', '-')}")
+        lines.append(f"    sistemas: {sol.get('sistemas', '-')}")
+        for i, paso in enumerate(sol.get("pasos", []), 1):
+            lines.append(f"      {i}. {paso}")
     stock = summary.get("alerta_stock", {})
     lines.append("")
     lines.append(f"Alerta Stock/ATP: {stock.get('conteo', 0)} documentos")
