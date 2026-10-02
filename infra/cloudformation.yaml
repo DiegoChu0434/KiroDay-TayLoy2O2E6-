@@ -1,0 +1,298 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Sistema de alertas para errores de integracion AS/400 -> SAP (tabla HA00).
+  Detecta nuevos CSV de errores en S3, los clasifica por causa raiz, emite
+  metricas a CloudWatch, dispara alarmas y envia un unico correo estructurado
+  via SNS + SES. Alerta diferenciada para STOCK/ATP.
+
+# ---------------------------------------------------------------------------
+Parameters:
+  RawBucketName:
+    Type: String
+    Default: tailoy-poc-s3-bucket-raw
+    Description: Bucket S3 existente donde aterrizan los CSV de errores HA00.
+
+  ErrorPrefix:
+    Type: String
+    Default: tai-loy/maestro/raw/ASPRD.ha00/
+    Description: Prefijo (carpeta) donde se depositan los CSV de errores.
+
+  SesSender:
+    Type: String
+    Description: Correo remitente verificado en SES (From).
+
+  SesRecipient:
+    Type: String
+    Description: Correo destino (bandeja personal) de las alertas.
+
+  MetricNamespace:
+    Type: String
+    Default: TaiLoy/IntegracionAS400SAP
+    Description: Namespace de metricas custom en CloudWatch.
+
+  CriticalThreshold:
+    Type: Number
+    Default: 1
+    Description: Umbral minimo de errores CRITICOS para disparar la alarma.
+
+# ---------------------------------------------------------------------------
+Resources:
+
+  # --- IAM: rol para la Lambda analizadora ---
+  AnalyzerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-analyzer-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: analyzer-permissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub "arn:aws:s3:::${RawBucketName}/${ErrorPrefix}*"
+              - Effect: Allow
+                Action: cloudwatch:PutMetricData
+                Resource: "*"
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref AlertTopic
+
+  # --- IAM: rol para la Lambda formateadora de correo ---
+  EmailFormatterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-email-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: email-permissions
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: ses:SendEmail
+                Resource: "*"
+
+  # --- SNS: topic de alertas ---
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-alertas"
+      DisplayName: Alertas AS400-SAP
+
+  # --- SES: identidades (requieren verificacion manual por email) ---
+  SesSenderIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref SesSender
+
+  SesRecipientIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref SesRecipient
+
+  # --- Lambda analizadora ---
+  AnalyzerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-analyzer"
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt AnalyzerRole.Arn
+      Timeout: 120
+      MemorySize: 256
+      Environment:
+        Variables:
+          METRIC_NAMESPACE: !Ref MetricNamespace
+          SNS_TOPIC_ARN: !Ref AlertTopic
+      Code:
+        ZipFile: |
+          import csv, io, json, os, re, logging
+          from collections import defaultdict
+          from datetime import datetime, timezone
+          import boto3
+          logger = logging.getLogger(); logger.setLevel(logging.INFO)
+          s3 = boto3.client("s3"); cloudwatch = boto3.client("cloudwatch"); sns = boto3.client("sns")
+          NS = os.environ.get("METRIC_NAMESPACE", "TaiLoy/IntegracionAS400SAP")
+          TOPIC = os.environ.get("SNS_TOPIC_ARN", "")
+          COL_DOC, COL_MSG, COL_FECHA = 3, 4, 7
+          RULES = [
+            ("PARTNER_FUNCTIONS_FALTANTES","CRITICA",re.compile(r"determinar el (pagador|receptor|solicitante|destinatario)",re.I),"Datos Maestros"),
+            ("DATOS_CLIENTE_INCOMPLETOS","CRITICA",re.compile(r"Valor de Cliente es obligatorio",re.I),"Datos Maestros / Integracion"),
+            ("CLIENTE_SIN_MAESTRO_VENTAS_KNVV","WARNING",re.compile(r"Falta tabla maestra de clientes KNVV",re.I),"Datos Maestros"),
+            ("DEUDOR_INEXISTENTE","WARNING",re.compile(r"El deudor .* no existe",re.I),"Datos Maestros"),
+            ("STOCK_INSUFICIENTE_ATP","INFO",re.compile(r"util\.?\s*libre por debajo",re.I),"Operaciones"),
+            ("MATERIAL_BLOQUEADO","INFO",re.compile(r"estan bloqueados por el usuario",re.I),"Transitorio"),
+            ("CUENTA_MAYOR_INEXISTENTE","WARNING",re.compile(r"cta\.?\s*mayor .* no existe",re.I),"Contabilidad"),
+          ]
+          STOCK = "STOCK_INSUFICIENTE_ATP"
+          def classify(m):
+            m=(m or "").strip()
+            for c,s,rx,eq in RULES:
+              if rx.search(m): return c,s,eq
+            return "OTRO","WARNING","Revision manual"
+          def cliente(doc,msg):
+            x=re.search(r"Cliente\s+(\d+)",msg or "",re.I)
+            if x: return x.group(1)
+            x=re.search(r"deudor\s+(\S+)",msg or "",re.I)
+            if x: return x.group(1)
+            doc=(doc or "").strip()
+            return doc.split("-")[0] if "-" in doc else (doc or "DESCONOCIDO")
+          def parse(body):
+            rows=list(csv.reader(io.StringIO(body),delimiter="|"))
+            out=[]
+            for cols in rows[1:]:
+              if len(cols)<=COL_MSG: continue
+              msg=cols[COL_MSG].strip(); doc=cols[COL_DOC].strip() if len(cols)>COL_DOC else ""
+              c,s,eq=classify(msg)
+              out.append({"documento":doc,"mensaje":msg,"categoria":c,"severidad":s,"equipo":eq,"cliente":cliente(doc,msg)})
+            return out
+          def summarize(regs,bucket,key):
+            por=defaultdict(int); sev={}; equ={}; clis=defaultdict(set); stock=[]
+            for r in regs:
+              c=r["categoria"]; por[c]+=1; sev[c]=r["severidad"]; equ[c]=r["equipo"]; clis[c].add(r["cliente"])
+              if c==STOCK: stock.append({"documento":r["documento"],"mensaje":r["mensaje"]})
+            dpc=defaultdict(lambda:defaultdict(int))
+            for r in regs: dpc[r["cliente"]][r["categoria"]]+=1
+            top=sorted(({"cliente":k,"total":sum(v.values()),"categorias":dict(v)} for k,v in dpc.items()),key=lambda x:x["total"],reverse=True)[:15]
+            cats=[{"categoria":c,"conteo":n,"severidad":sev.get(c,"WARNING"),"equipo":equ.get(c,"Revision manual"),"clientes_afectados":len(clis.get(c,set()))} for c,n in sorted(por.items(),key=lambda x:x[1],reverse=True)]
+            return {"lote":{"bucket":bucket,"key":key,"procesado_utc":datetime.now(timezone.utc).isoformat(),"total_errores":len(regs),"clientes_afectados":len({r["cliente"] for r in regs})},"categorias":cats,"alerta_stock":{"categoria":STOCK,"conteo":por.get(STOCK,0),"documentos":stock[:50]},"top_clientes":top}
+          def metrics(sm):
+            md=[{"MetricName":"ErroresPorCategoria","Dimensions":[{"Name":"Categoria","Value":c["categoria"]},{"Name":"Severidad","Value":c["severidad"]}],"Value":c["conteo"],"Unit":"Count"} for c in sm["categorias"]]
+            md.append({"MetricName":"TotalErroresLote","Value":sm["lote"]["total_errores"],"Unit":"Count"})
+            if md: cloudwatch.put_metric_data(Namespace=NS,MetricData=md)
+          def publish(sm):
+            if TOPIC: sns.publish(TopicArn=TOPIC,Subject="Alerta errores integracion AS400-SAP",Message=json.dumps(sm,ensure_ascii=False))
+          def handler(event,context):
+            res=[]
+            for rec in event.get("Records",[]):
+              b=rec["s3"]["bucket"]["name"]; k=rec["s3"]["object"]["key"]
+              body=s3.get_object(Bucket=b,Key=k)["Body"].read().decode("latin-1")
+              sm=summarize(parse(body),b,k)
+              logger.info("RESUMEN_LOTE %s",json.dumps(sm,ensure_ascii=False))
+              metrics(sm); publish(sm); res.append({"key":k,"total":sm["lote"]["total_errores"]})
+            return {"statusCode":200,"procesados":res}
+
+  # --- Lambda formateadora de correo ---
+  EmailFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-email"
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt EmailFormatterRole.Arn
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          SES_SENDER: !Ref SesSender
+          SES_RECIPIENT: !Ref SesRecipient
+      Code:
+        ZipFile: |
+          import json, os, logging
+          import boto3
+          logger=logging.getLogger(); logger.setLevel(logging.INFO)
+          ses=boto3.client("ses")
+          SENDER=os.environ.get("SES_SENDER",""); RECIP=os.environ.get("SES_RECIPIENT","")
+          COLOR={"CRITICA":"#c0392b","WARNING":"#e67e22","INFO":"#2980b9"}
+          def rc(c):
+            col=COLOR.get(c["severidad"],"#555")
+            return f"<tr><td style='padding:6px 10px;border-bottom:1px solid #eee'>{c['categoria']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right'>{c['conteo']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee'><span style='color:#fff;background:{col};padding:2px 8px;border-radius:3px;font-size:12px'>{c['severidad']}</span></td><td style='padding:6px 10px;border-bottom:1px solid #eee'>{c['equipo']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right'>{c['clientes_afectados']}</td></tr>"
+          def rcl(c):
+            cats=", ".join(f"{k} ({v})" for k,v in c["categorias"].items())
+            return f"<tr><td style='padding:6px 10px;border-bottom:1px solid #eee'>{c['cliente']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee;text-align:right'>{c['total']}</td><td style='padding:6px 10px;border-bottom:1px solid #eee'>{cats}</td></tr>"
+          def html(sm):
+            lote=sm["lote"]; url=f"https://{lote['bucket']}.s3.amazonaws.com/{lote['key']}"
+            cr="".join(rc(c) for c in sm["categorias"]); clr="".join(rcl(c) for c in sm["top_clientes"])
+            st=sm.get("alerta_stock",{}); sc=st.get("conteo",0); sd=st.get("documentos",[])
+            si="".join(f"<li><code>{d['documento']}</code> - {d['mensaje']}</li>" for d in sd[:20])
+            ss=f"<h3 style='color:#2980b9'>Alerta diferenciada - Stock/ATP ({sc})</h3><p style='color:#555'>Errores de disponibilidad (no son fallas de migracion). Mostrando primeros {min(20,len(sd))} de {sc}.</p><ul style='font-size:13px'>{si or '<li>Sin casos.</li>'}</ul>"
+            return f"<html><body style='font-family:Segoe UI,Arial,sans-serif;color:#222;max-width:800px'><h2>Alerta de errores - Integracion AS/400 -> SAP</h2><p style='color:#777'>Lote: {lote['procesado_utc']}</p><div style='background:#f8f9fa;border:1px solid #e1e4e8;border-radius:6px;padding:14px;margin:12px 0'><strong>Total errores:</strong> {lote['total_errores']} | <strong>Clientes afectados:</strong> {lote['clientes_afectados']}<br><strong>Archivo:</strong> <code>{lote['key']}</code></div><h3>Resumen por categoria</h3><table style='border-collapse:collapse;width:100%;font-size:14px'><thead><tr style='background:#2c3e50;color:#fff'><th style='padding:8px 10px;text-align:left'>Categoria</th><th style='padding:8px 10px;text-align:right'>Conteo</th><th style='padding:8px 10px;text-align:left'>Severidad</th><th style='padding:8px 10px;text-align:left'>Equipo</th><th style='padding:8px 10px;text-align:right'>Clientes</th></tr></thead><tbody>{cr}</tbody></table>{ss}<h3>Top clientes afectados</h3><table style='border-collapse:collapse;width:100%;font-size:14px'><thead><tr style='background:#2c3e50;color:#fff'><th style='padding:8px 10px;text-align:left'>Cliente</th><th style='padding:8px 10px;text-align:right'>Docs</th><th style='padding:8px 10px;text-align:left'>Categorias</th></tr></thead><tbody>{clr}</tbody></table><p style='margin-top:16px'><a href='{url}' style='color:#2980b9'>Ver archivo en S3</a></p><hr style='border:none;border-top:1px solid #eee'><p style='color:#999;font-size:12px'>Generado automaticamente por el sistema de alertas AS/400 -> SAP.</p></body></html>"
+          def text(sm):
+            lote=sm["lote"]; L=["Alerta errores AS/400 -> SAP",f"Lote: {lote['procesado_utc']}",f"Total: {lote['total_errores']} | Clientes: {lote['clientes_afectados']}",f"Archivo: {lote['key']}","","Por categoria:"]
+            for c in sm["categorias"]: L.append(f"  - {c['categoria']}: {c['conteo']} [{c['severidad']}] ({c['equipo']})")
+            L.append(""); L.append(f"Stock/ATP: {sm.get('alerta_stock',{}).get('conteo',0)} docs")
+            return "\n".join(L)
+          def handler(event,context):
+            if not SENDER or not RECIP: raise RuntimeError("SES_SENDER y SES_RECIPIENT requeridos")
+            for rec in event.get("Records",[]):
+              sm=json.loads(rec["Sns"]["Message"])
+              tot=sm["lote"]["total_errores"]; fn=sm["lote"]["key"].split("/")[-1]
+              ses.send_email(Source=SENDER,Destination={"ToAddresses":[RECIP]},Message={"Subject":{"Data":f"[AS400->SAP] {tot} errores - {fn}","Charset":"UTF-8"},"Body":{"Text":{"Data":text(sm),"Charset":"UTF-8"},"Html":{"Data":html(sm),"Charset":"UTF-8"}}})
+            return {"statusCode":200}
+
+  # --- SNS -> Lambda formateadora ---
+  EmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn: !Ref AlertTopic
+      Endpoint: !GetAtt EmailFunction.Arn
+
+  EmailInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref EmailFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref AlertTopic
+
+  # --- Permiso para que S3 invoque la Lambda analizadora ---
+  S3InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AnalyzerFunction
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+      SourceArn: !Sub "arn:aws:s3:::${RawBucketName}"
+
+  # --- CloudWatch: alarma de errores criticos ---
+  CriticalAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-errores-criticos"
+      AlarmDescription: Dispara cuando hay errores CRITICOS de integracion (partner functions / datos cliente).
+      Namespace: !Ref MetricNamespace
+      MetricName: ErroresPorCategoria
+      Dimensions:
+        - Name: Categoria
+          Value: PARTNER_FUNCTIONS_FALTANTES
+        - Name: Severidad
+          Value: CRITICA
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: !Ref CriticalThreshold
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+# ---------------------------------------------------------------------------
+Outputs:
+  AnalyzerFunctionArn:
+    Description: ARN de la Lambda analizadora (configurar notificacion S3 hacia aqui).
+    Value: !GetAtt AnalyzerFunction.Arn
+  AlertTopicArn:
+    Description: ARN del topic SNS de alertas.
+    Value: !Ref AlertTopic
+  EmailFunctionArn:
+    Description: ARN de la Lambda formateadora de correo.
+    Value: !GetAtt EmailFunction.Arn
+  NotaConfiguracionS3:
+    Description: Paso manual requerido tras el deploy.
+    Value: !Sub "Configurar notificacion ObjectCreated en el bucket ${RawBucketName} prefijo ${ErrorPrefix} -> invocar la Lambda analizadora."

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# AWS / credenciales (nunca versionar)
+*.pem
+.aws/
+credentials
+*.env
+
+# Empaquetado Lambda
+*.zip
+build/
+dist/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
